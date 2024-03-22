@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-
+import { RingcentralModule } from './ringcentral/ringcentral.module';
 @Module({
-  imports: [],
+  imports: [RingcentralModule],
   controllers: [],
-  providers: [],
+  providers: [
+    
+  ],
 })
-export class AppModule {}
+export class AppModule { }
