@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
-import { MessagesModule } from './messages/messages.module';
 import { RingcentralService } from './ringcentral.service';
+import { MessagesModule } from './messages/messages.module';
+import { ChatsModule } from './chats/chats.module';
+
 
 @Module({
-    imports: [MessagesModule],
+    imports: [
+        MessagesModule,
+        ChatsModule
+    ],
     providers: [RingcentralService],
 
 })

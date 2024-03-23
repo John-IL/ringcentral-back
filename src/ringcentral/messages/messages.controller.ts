@@ -1,25 +1,37 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { MessagesService } from './messages.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
+import { ApiTags } from '@nestjs/swagger';
 
-import { CreateMessageDto, ListMessageDto } from './dto/message.dto';
 
+@ApiTags('ringcentral')
 @Controller('ringcentral/messages')
 export class MessagesController {
+  constructor(private readonly messagesService: MessagesService) {}
+ 
+  @Post()
+  create(@Body() createMessageDto: CreateMessageDto) {
+    return this.messagesService.create(createMessageDto);
+  }
 
-    constructor(
-        private messageService: MessagesService
-    ) { }
+  @Get()
+  findAll() {
+    return this.messagesService.findAll();
+  }
 
-    @Get()
-    getAll(@Body() request: ListMessageDto) {
-        return this.messageService.getAll(request);
-    }
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.messagesService.findOne(+id);
+  }
 
-    @Post()
-    create(@Body() request: CreateMessageDto) {
-        this.messageService.create(request);
-        return 1;
-        // return this.messageService.create();
-    }
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateMessageDto: UpdateMessageDto) {
+    return this.messagesService.update(+id, updateMessageDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.messagesService.remove(+id);
+  }
 }

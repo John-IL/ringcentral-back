@@ -1,36 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { RingcentralService } from '../ringcentral.service';
-import { ListMessageDto } from './dto/message.dto';
-import { Credential } from '../ringcentral.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
+import { Messages, MessagesDocument } from './schema/messages.schema';
+import { Model } from 'mongoose'
 
 @Injectable()
 export class MessagesService {
-    private ringcentralService: RingcentralService;
-    constructor(
-    ) {
-        this.ringcentralService = new RingcentralService();
-    }
 
-    getAll = (request: ListMessageDto) => {
-        try {
-            const credential: Credential =
-            {
-                username: request.number,
-                extension: request.extension,
-                password: request.password
-            };
+  constructor(@InjectModel(Messages.name) private MessagesModule: Model<MessagesDocument>)
+  {}
 
-            const rcsdk = this.ringcentralService.login(credential);
-            return 1;
-        } catch (e) {
-            throw e;
-        }
-    }
-    
-    create(variable) {
-        const rcsdk = this.ringcentralService.login();
-    }
-    update() { }
-    delete() { }
-    getById() { }
+  async create(createMessageDto: CreateMessageDto) {
+    const created = await this.MessagesModule.create(createMessageDto)
+    return created;
+  }
+
+  findAll() {
+    return `This action returns all messages`;
+  }
+
+  findOne(id: number) {
+    return `This action returns a #${id} message`;
+  }
+
+  update(id: number, updateMessageDto: UpdateMessageDto) {
+    return `This action updates a #${id} message`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} message`;
+  }
 }
