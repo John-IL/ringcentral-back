@@ -22,7 +22,7 @@ export class ChatsController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.chatsService.findOne(+id);
+    return this.chatsService.findOne(id);
   }
 
   @Patch(':id')
