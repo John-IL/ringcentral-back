@@ -1,6 +1,6 @@
 export class Chat {
-    id: string;
-    firstNumber: string;
-    secondNumber: string;
+    id: String;
+    firstNumber: String;
+    secondNumber: String;
     creationDate: Date;
 }

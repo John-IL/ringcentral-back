@@ -6,12 +6,12 @@ export class CreateChatDto {
     @IsNotEmpty()
     @IsString()
     @MinLength(3)
-    firstNumber: string;
+    firstNumber: String;
 
     @IsNotEmpty()
     @IsString()
     @MinLength(3)
-    secondNumber: string;
+    secondNumber: String;
 
     @IsNotEmpty()
     @IsIn([Type.INTERNAL, Type.LEAD, Type.YOU])

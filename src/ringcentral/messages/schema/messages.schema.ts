@@ -1,30 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose'
 import { Document } from 'mongoose';
 
-enum MessageType {
+import { Participant } from '../entities/participant.entity';
+import { Attachments } from '../entities/attachment.entity';
+import { User } from '../entities/user.entity';
+
+export enum MessageType {
     FAX = "FAX",
     SMS = "SMS",
     VoiceMail = "VoiceMail",
     Pager = "Pager",
 }
 
-enum MessageDirection {
+export enum MessageDirection {
     INBOUND = "INBOUND",
     OUTBOUND = "OUTBOUND",
 }
 
-enum MessageReadStatus {
+export enum MessageReadStatus {
     READ = "READ",
     UNREAD = "UNREAD",
 }
 
-enum MessageAvailability {
-    Alive = "Alive",
-    Deleted = "Deleted",
-    Purged = "Purged",
-}
-
-enum MessageStatus {
+export enum MessageStatus {
     Queued = 'Queued',
     Sent = 'Sent', 
     Delivered = 'Delivered', 
@@ -33,7 +32,8 @@ enum MessageStatus {
     Received = 'Received'
 }
 
-enum MessageResources {
+export enum MessageResources {
+    MIGRATION = 'MIGRATION',
     CHAT = "CHAT",
 }
 
@@ -41,41 +41,49 @@ export type MessagesDocument = Messages & Document;
 
 @Schema()
 export class Messages {
-    @Prop({ unique: true })
-    id: string;
 
     @Prop({ unique: true })
-    conversationId: string;
+    conversationId?: string;
+
+    @Prop({ type: Types.ObjectId, ref: 'chats' })
+    chatId: Types.ObjectId;
 
     @Prop()
-    creationTime: Date;
+    to: Participant;
 
     @Prop()
-    fromModule: string;
-
-    @Prop()
-    fromNumber: string;
-
-    @Prop()
-    fromName: string;
-
-    @Prop({ type: String, enum: Object.values(MessageDirection) })
-    direction: MessageDirection;
-
-    @Prop({ type: String, enum: Object.values(MessageReadStatus) })
-    readStatus: MessageReadStatus;
+    from: Participant;
 
     @Prop({ type: String, enum: Object.values(MessageType) })
     type: MessageType;
 
-    @Prop({ type: String, enum: Object.values(MessageAvailability) })
-    availability: MessageAvailability;
+    @Prop()
+    creationTime: Date;
 
+    @Prop({ type: String, enum: Object.values(MessageReadStatus) })
+    readStatus: MessageReadStatus;
+
+    @Prop()
+    attachments: [Attachments]
+
+    @Prop({ type: String, enum: Object.values(MessageDirection) })
+    direction: MessageDirection;
+    
+    @Prop()
+    subject: string;
+    
     @Prop({ type: String, enum: Object.values(MessageStatus) })
     messageStatus: MessageStatus;
 
-    @Prop({ type: String, enum: Object.values(MessageResources) })
-    fromResource: MessageResources;
+    @Prop({ type: String, enum: Object.values(MessageResources), default: MessageResources.MIGRATION })
+    resource: MessageResources;
+
+    @Prop()
+    createdBy: User;
+
+    @Prop()
+    readBy: User;
+
 }
 
 export const MessagesSchema = SchemaFactory.createForClass(Messages);

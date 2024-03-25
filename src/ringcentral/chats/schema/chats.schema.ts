@@ -12,10 +12,10 @@ export type ChatsDocument = Chats & Document;
 @Schema()
 export class Chats {
     @Prop()
-    firstNumber: string;
+    firstNumber: String;
 
     @Prop()
-    secondNumber: string;
+    secondNumber: String;
 
     @Prop({ type: String, enum: Object.values(Type) })
     type: Type;

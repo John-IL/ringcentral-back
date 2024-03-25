@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { Messages, MessagesDocument } from './schema/messages.schema';
 import { Model } from 'mongoose'
+import { CommonsService } from '../commons/commons.service'
 
 @Injectable()
 export class MessagesService {
 
-  constructor(@InjectModel(Messages.name) private MessagesModule: Model<MessagesDocument>)
+  constructor(
+    @InjectModel(Messages.name) private MessagesModule: Model<MessagesDocument>,
+    private readonly commonsService: CommonsService
+    )
   {}
 
   async create(createMessageDto: CreateMessageDto) {

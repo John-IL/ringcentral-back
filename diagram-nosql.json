@@ -1,0 +1,39 @@
+{
+    "chatId": "ObjectId",
+    "consversationId" : "String",
+    "to":{
+        "phoneNumber" : "String"
+    },
+    "from":{ 
+        "phoneNumber" : "String",
+        "name" : "String"
+    },
+    "type": "Enum",
+    "creationTime": "Date",
+    "readStatus": "Enum",
+    "attachments": [
+        {
+            "id" : "String",
+            "uri": "String",
+            "recordUrl": "String",
+            "filename": "String",
+            "duration": "Int",
+            "type" : "Enum",
+            "contentType" : "String",
+            "fileType" : "Enum",
+            "createdAt" : "Date"
+        }
+    ],
+    "direction": "Enum",
+    "subject" : "String",
+    "messageStatus": "Enum",
+    "resource": "Enum",
+    "createdBy":{
+        "id": "Int",
+        "name": "String"
+    },
+    "readBy":{
+        "id": "Int",
+        "name": "String"    
+    }
+}
