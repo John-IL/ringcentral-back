@@ -1,10 +1,11 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
-import { Messages, MessagesDocument } from './schema/messages.schema';
 import { Model } from 'mongoose'
-import { CommonsService } from '../commons/commons.service'
+import { InjectModel } from '@nestjs/mongoose';
+
+import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
+import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
+import { Messages, MessagesDocument } from '@/ringcentral/messages/schema/messages.schema';
+import { CommonsService } from '@/ringcentral/commons/commons.service'
 
 @Injectable()
 export class MessagesService {
@@ -16,6 +17,7 @@ export class MessagesService {
   {}
 
   async create(createMessageDto: CreateMessageDto) {
+    return this.commonsService.processMessage();
     const created = await this.MessagesModule.create(createMessageDto)
     return created;
   }

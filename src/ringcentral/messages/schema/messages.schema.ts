@@ -2,9 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose'
 import { Document } from 'mongoose';
 
-import { Participant } from '../entities/participant.entity';
-import { Attachments } from '../entities/attachment.entity';
-import { User } from '../entities/user.entity';
+import { Participant } from '@/ringcentral/messages/entities/participant.entity';
+import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
+import { User } from '@/ringcentral/messages/entities/user.entity';
 
 export enum MessageType {
     FAX = "FAX",

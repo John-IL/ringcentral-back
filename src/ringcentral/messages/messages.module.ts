@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { MessagesService } from './messages.service';
-import { MessagesController } from './messages.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Messages, MessagesSchema } from './schema/messages.schema';
-import { CommonsModule } from '../commons/commons.module'
+
+import { MessagesService } from '@/ringcentral/messages/messages.service';
+import { MessagesController } from '@/ringcentral/messages/messages.controller';
+import { Messages, MessagesSchema } from '@/ringcentral/messages/schema/messages.schema';
+import { CommonsModule } from '@/ringcentral/commons/commons.module'
 
 @Module({
   imports: [

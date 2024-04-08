@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
 import { ApiTags } from '@nestjs/swagger';
+
+import { MessagesService } from '@/ringcentral/messages/messages.service';
+import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
+import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
 
 
 @ApiTags('ringcentral')

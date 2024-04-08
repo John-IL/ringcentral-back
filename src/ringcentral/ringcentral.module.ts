@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { RingcentralService } from './ringcentral.service';
-import { MessagesModule } from './messages/messages.module';
-import { ChatsModule } from './chats/chats.module';
-import { CommonsModule } from './commons/commons.module';
+
+import { RingcentralService } from '@/ringcentral/ringcentral.service';
+import { MessagesModule } from '@/ringcentral/messages/messages.module';
+import { ChatsModule } from '@/ringcentral/chats/chats.module';
+import { CommonsModule } from '@/ringcentral/commons/commons.module';
 
 @Module({
     imports: [

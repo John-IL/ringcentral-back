@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SDK } from '@ringcentral/sdk';
-import { Credential } from './ringcentral.entity'
+
+import { Credential } from '@/ringcentral/ringcentral.entity'
 
 @Injectable()
 export class RingcentralService {
