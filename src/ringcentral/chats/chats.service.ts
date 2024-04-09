@@ -11,9 +11,23 @@ export class ChatsService {
   constructor(@InjectModel(Chats.name) private ChatsModule: Model<ChatsDocument>) { }
 
   async create(createChatDto: CreateChatDto) {
-    const { firstNumber, secondNumber } = createChatDto;
+    const { firstParticipant, secondParticipant } = createChatDto;
+    const firstNumber = firstParticipant.phoneNumber;
+    const secondNumber = secondParticipant.phoneNumber;
 
-    const existingChat = await this.ChatsModule.findOne({ firstNumber, secondNumber }).exec();
+    const existingChat = await this.ChatsModule.findOne({
+      $or: [
+        {
+          'firstParticipant.phoneNumber': firstNumber,
+          'secondParticipant.phoneNumber': secondNumber
+        },
+        {
+          'firstParticipant.phoneNumber': secondNumber,
+          'secondParticipant.phoneNumber': firstNumber
+        }
+      ]
+    }).exec();
+
     if (existingChat) {
       throw new ConflictException('This chat has already been created');
     }
@@ -22,8 +36,16 @@ export class ChatsService {
     return created;
   }
 
-  async findAll() {
-    const list = await this.ChatsModule.find({});
+  async findAll(phoneNumber: string, page: number) {
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+
+    const list = await this.ChatsModule.find({
+      $or: [
+        { 'firstParticipant.phoneNumber': phoneNumber },
+        { 'secondParticipant.phoneNumber': phoneNumber }
+      ]
+    }).skip(skip).limit(pageSize).exec();
     return list;
   }
 

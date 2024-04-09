@@ -3,6 +3,7 @@ import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { UpdateChatDto } from './dto/update-chat.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { SearchChatDto } from './dto/search.dto';
 
 
 @ApiTags('ringcentral')
@@ -15,9 +16,10 @@ export class ChatsController {
     return this.chatsService.create(createChatDto);
   }
 
-  @Get()
-  findAll() {
-    return this.chatsService.findAll();
+  @Post('/search')
+  findAll(@Body() searchChatDto: SearchChatDto) {
+    const { phoneNumber, page } = searchChatDto;
+    return this.chatsService.findAll(phoneNumber, page);
   }
 
   @Get(':id')

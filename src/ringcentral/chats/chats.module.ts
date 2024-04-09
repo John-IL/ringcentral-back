@@ -16,5 +16,6 @@ import { Chats, ChatsSchema } from './schema/chats.schema';
 
   controllers: [ChatsController],
   providers: [ChatsService],
+  exports: [ChatsService]
 })
 export class ChatsModule {}

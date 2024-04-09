@@ -1,32 +1,29 @@
-import { IsNotEmpty, IsString, MinLength, IsDateString, IsIn } from 'class-validator'
-import { Type } from '../schema/chats.schema'
+import { IsNotEmpty, IsString, MinLength, Matches, IsIn, ValidateNested } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger';
+import { Participant } from '@/ringcentral/messages/entities/participant.entity';
+import { Type } from 'class-transformer';
+import { TypeChat } from "@/ringcentral/chats/schema/chats.schema"
 
 export class CreateChatDto {
 
-    @ApiProperty({ description: 'first number', example: '(636) 324-2342' })
+    @ApiProperty()
     @IsNotEmpty()
-    @IsString()
-    @MinLength(3)
-    firstNumber: String;
+    @ValidateNested()
+    @Type(() => Participant)
+    firstParticipant: Participant;
 
-    @ApiProperty({ description: 'second number', example: '(800) 222-1111' })
+    @ApiProperty()
     @IsNotEmpty()
-    @IsString()
-    @MinLength(3)
-    secondNumber: String;
+    @ValidateNested()
+    @Type(() => Participant)
+    secondParticipant: Participant;
 
     @ApiProperty({ 
         description: 'Type of chat', 
-        enum: Type,
-        example: Type.INTERNAL
+        enum: TypeChat,
+        example: TypeChat.INTERNAL
     })
     @IsNotEmpty()
-    @IsIn([Type.INTERNAL, Type.LEAD, Type.YOU])
-    type: Type;
-
-    @ApiProperty({ description: 'Creation time of the chat', example: '2024-03-28 12:00:00' })
-    @IsNotEmpty()
-    @IsDateString()
-    creationTime: Date;
+    @IsIn([TypeChat.INTERNAL, TypeChat.LEAD, TypeChat.YOU])
+    typeChat: TypeChat;
 }

@@ -5,6 +5,7 @@ import { MessagesService } from '@/ringcentral/messages/messages.service';
 import { MessagesController } from '@/ringcentral/messages/messages.controller';
 import { Messages, MessagesSchema } from '@/ringcentral/messages/schema/messages.schema';
 import { CommonsModule } from '@/ringcentral/commons/commons.module'
+import { ChatsModule } from '@/ringcentral/chats/chats.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CommonsModule } from '@/ringcentral/commons/commons.module'
       }
     ]),
     CommonsModule,
+    ChatsModule
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

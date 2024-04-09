@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose'
 import { Document } from 'mongoose';
+import * as moment from 'moment-timezone'; 
 
-import { Participant } from '@/ringcentral/messages/entities/participant.entity';
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
 import { User } from '@/ringcentral/messages/entities/user.entity';
 
@@ -42,17 +42,11 @@ export type MessagesDocument = Messages & Document;
 @Schema()
 export class Messages {
 
-    @Prop({ unique: true })
-    conversationId?: string;
+    @Prop()
+    conversationId?: String;
 
     @Prop({ type: Types.ObjectId, ref: 'chats' })
     chatId: Types.ObjectId;
-
-    @Prop()
-    to: Participant;
-
-    @Prop()
-    from: Participant;
 
     @Prop({ type: String, enum: Object.values(MessageType) })
     type: MessageType;
@@ -70,7 +64,7 @@ export class Messages {
     direction: MessageDirection;
     
     @Prop()
-    subject: string;
+    subject: String;
     
     @Prop({ type: String, enum: Object.values(MessageStatus) })
     messageStatus: MessageStatus;
@@ -83,6 +77,9 @@ export class Messages {
 
     @Prop()
     readBy: User;
+
+    @Prop({ default: () => moment.tz('America/Los_Angeles') })
+    createdAt: Date
 
 }
 
