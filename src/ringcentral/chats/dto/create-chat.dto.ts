@@ -25,5 +25,5 @@ export class CreateChatDto {
     })
     @IsNotEmpty()
     @IsIn([TypeChat.INTERNAL, TypeChat.LEAD, TypeChat.YOU])
-    typeChat: TypeChat;
+    type: TypeChat;
 }

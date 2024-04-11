@@ -4,16 +4,20 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
 import { MessageDirection } from "@/ringcentral/messages/schema/messages.schema"
 import { User } from '@/ringcentral/messages/entities/user.entity';
+import { Type } from 'class-transformer';
 
 export class CreateMessageDto {
 
+    @ApiProperty()
     @IsNotEmpty()
     @IsString()
     chatId: string;
 
+    @ApiProperty()
     @IsString()
     subject: string;
 
+    @ApiProperty()
     @IsOptional()
     attachment: [Attachments]
 
@@ -26,6 +30,25 @@ export class CreateMessageDto {
     @IsIn([MessageDirection.INBOUND, MessageDirection.OUTBOUND])
     direction: MessageDirection;
 
-    @IsOptional()
-    createdBy: User
+    @ApiProperty()
+    @IsNotEmpty()
+    @ValidateNested()
+    @Type(() => User)
+    createdBy: User;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    tokenRc: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    fromNumber: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    toNumber: string;
+
 }

@@ -3,7 +3,7 @@ import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { UpdateChatDto } from './dto/update-chat.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { SearchChatDto } from './dto/search.dto';
+import { SearchChatDto } from './dto/search-chat.dto';
 
 
 @ApiTags('ringcentral')

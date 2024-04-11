@@ -5,6 +5,7 @@ import * as moment from 'moment-timezone';
 
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
 import { User } from '@/ringcentral/messages/entities/user.entity';
+import { Participant } from '@/ringcentral/messages/entities/participant.entity'
 
 export enum MessageType {
     FAX = "FAX",
@@ -14,13 +15,13 @@ export enum MessageType {
 }
 
 export enum MessageDirection {
-    INBOUND = "INBOUND",
-    OUTBOUND = "OUTBOUND",
+    INBOUND = "Inbound",
+    OUTBOUND = "Outbound",
 }
 
 export enum MessageReadStatus {
-    READ = "READ",
-    UNREAD = "UNREAD",
+    READ = "Read",
+    UNREAD = "Unread",
 }
 
 export enum MessageStatus {
@@ -33,8 +34,8 @@ export enum MessageStatus {
 }
 
 export enum MessageResources {
-    MIGRATION = 'MIGRATION',
-    CHAT = "CHAT",
+    MIGRATION = 'Migration',
+    CHAT = "Chat",
 }
 
 export type MessagesDocument = Messages & Document;
@@ -43,7 +44,7 @@ export type MessagesDocument = Messages & Document;
 export class Messages {
 
     @Prop()
-    conversationId?: String;
+    conversationId: Number;
 
     @Prop({ type: Types.ObjectId, ref: 'chats' })
     chatId: Types.ObjectId;
@@ -79,7 +80,13 @@ export class Messages {
     readBy: User;
 
     @Prop({ default: () => moment.tz('America/Los_Angeles') })
-    createdAt: Date
+    createdAt: Date;
+
+    @Prop({  default: () => false })
+    highlight: Boolean;
+
+    @Prop({  default: () => false })
+    important: Boolean;
 
 }
 

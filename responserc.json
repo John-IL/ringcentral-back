@@ -1,0 +1,39 @@
+{
+    "uri": "https://platform.ringcentral.com/restapi/v1.0/account/284641023/extension/62419611023/message-store/2765529192023",
+    "id": 2765529192023,
+    "to": [
+        {
+            "phoneNumber": "+16263467630",
+            "name": "PARAGON .",
+            "location": "La Puente, CA"
+        }
+    ],
+    "from": {
+        "phoneNumber": "+16263467630",
+        "name": "PARAGON .",
+        "location": "La Puente, CA"
+    },
+    "type": "SMS",
+    "creationTime": "2024-04-10T16:49:13.000Z",
+    "readStatus": "Read",
+    "priority": "Normal",
+    "attachments": [
+        {
+            "id": 2765529192023,
+            "uri": "https://platform.ringcentral.com/restapi/v1.0/account/284641023/extension/62419611023/message-store/2765529192023/content/2765529192023",
+            "type": "Text",
+            "contentType": "text/plain"
+        }
+    ],
+    "direction": "Outbound",
+    "availability": "Alive",
+    "subject": "tercer mensaje desde nest",
+    "messageStatus": "Queued",
+    "smsSendingAttemptsCount": 1,
+    "conversationId": 7466252274383743000,
+    "conversation": {
+        "id": "7466252274383743165",
+        "uri": "https://platform.ringcentral.com/restapi/v1.0/conversation/7466252274383743165"
+    },
+    "lastModifiedTime": "2024-04-10T16:49:13.780Z"
+}

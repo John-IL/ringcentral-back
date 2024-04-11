@@ -4,6 +4,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { MessagesService } from '@/ringcentral/messages/messages.service';
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
 import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
+import { SearchMessagesDto } from './dto/search-messages.dto.';
+import { FindMessagesDto } from './dto/find-messages.dto';
 
 
 @ApiTags('ringcentral')
@@ -16,14 +18,25 @@ export class MessagesController {
     return this.messagesService.create(createMessageDto);
   }
 
-  @Get()
-  findAll() {
-    return this.messagesService.findAll();
+  @Post('/by-chat')
+  findAllByChatId(@Body() searchChatDto: SearchMessagesDto) {
+    return this.messagesService.findAll(searchChatDto);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.messagesService.findOne(+id);
+  @Post('/search')
+  findByText(@Body() searchChatDto: SearchMessagesDto) {
+    return this.messagesService.findByText(searchChatDto);
+  }
+
+  @Post('/find')
+  findOne(@Body() findMessageDto: FindMessagesDto) {
+    return this.messagesService.findOne(findMessageDto);
+  }
+
+
+  @Post('/migrate')
+  syncMessages(@Body() findMessageDto: FindMessagesDto) {
+    return this.messagesService.findOne(findMessageDto);
   }
 
   @Patch(':id')

@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { config as AWSConfig } from 'aws-sdk';
+
 
 async function bootstrap() {
   dotenv.config();
@@ -17,6 +19,16 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('documentation', app, document);
+
+  app.setGlobalPrefix('api');
+  app.enableCors();
+
+
+  AWSConfig.update({
+    accessKeyId:  process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_DEFAULT_REGION,
+  });
 
 
   await app.listen(3000);
