@@ -4,13 +4,13 @@ import {  MessageType, MessageReadStatus, MessageDirection, MessageStatus, Messa
 
 export class Message {
     conversationId: Number;
-    chatId: String;
+    chatId: string;
     type: MessageType;
     creationTime: Date;
     readStatus: MessageReadStatus;
     attachments?: [Attachments];
     direction: MessageDirection;
-    subject: String;
+    subject: string;
     resource?: MessageResources;
     
     createdBy?: User; 

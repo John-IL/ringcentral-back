@@ -14,23 +14,12 @@ export class ChatsService {
     @InjectModel(Messages.name) private readonly MessagesModule: Model<MessagesDocument>,
   ) { }
 
-  async create(createChatDto: CreateChatDto) {
+  async create(createChatDto: CreateChatDto): Promise<ChatsDocument>  {
     const { firstParticipant, secondParticipant } = createChatDto;
     const firstNumber = firstParticipant.phoneNumber;
     const secondNumber = secondParticipant.phoneNumber;
 
-    const existingChat = await this.ChatsModule.findOne({
-      $or: [
-        {
-          'firstParticipant.phoneNumber': firstNumber,
-          'secondParticipant.phoneNumber': secondNumber
-        },
-        {
-          'firstParticipant.phoneNumber': secondNumber,
-          'secondParticipant.phoneNumber': firstNumber
-        }
-      ]
-    }).exec();
+    const existingChat = this.findChatPhoneNumbers(firstNumber, secondNumber);
 
     if (existingChat) {
       throw new ConflictException('This chat has already been created');
@@ -127,33 +116,10 @@ export class ChatsService {
       }
     ]);
 
-    // const chats = await this.ChatsModule.find({
-    //   $or: [
-    //     { 'firstParticipant.phoneNumber': phoneNumber },
-    //     { 'secondParticipant.phoneNumber': phoneNumber }
-    //   ]
-    // }).skip(skip).limit(pageSize).exec();
-
-    // const chatsWithLastMessage = await Promise.all(chats.map( async (chat) => {
-
-    //   const chatId = chat._id+"";
-
-    //   const lastMessage = await this.MessagesModule
-    //     .findOne({ chatId })
-    //     .sort({ createdAt: -1 })
-    //     .exec();
-
-    //   return {
-    //     chat,
-    //     lastMessage
-    //   };
-    // })); 
-
-    // return chatsWithLastMessage;
     return chatsWithLastMessageAndUnreadCount;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string) : Promise<ChatsDocument> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid chat id');
     }
@@ -162,6 +128,24 @@ export class ChatsService {
     if (!chat) {
       throw new NotFoundException('Chat not found');
     }
+    return chat;
+  }
+
+  async findChatPhoneNumbers(firstPhoneNumber: string, secondPhoneNumber: string): Promise<ChatsDocument | null>  {
+
+    const chat = await this.ChatsModule.findOne({
+      $or: [
+        {
+          'firstParticipant.phoneNumber': firstPhoneNumber,
+          'secondParticipant.phoneNumber': secondPhoneNumber
+        },
+        {
+          'firstParticipant.phoneNumber': secondPhoneNumber,
+          'secondParticipant.phoneNumber': firstPhoneNumber
+        }
+      ]
+    }).exec();
+
     return chat;
   }
 

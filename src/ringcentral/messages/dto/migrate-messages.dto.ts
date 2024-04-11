@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString, IsOptional, ValidateNested, IsIn, IsDateString } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger';
 
-export class FindMessagesDto {
+export class MigrateMessagesDto {
     @ApiProperty()
     @IsNotEmpty()
     @IsString()

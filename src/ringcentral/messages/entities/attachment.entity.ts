@@ -17,12 +17,12 @@ export enum AttachmentsTypep{
 
 export class Attachments {
     id: Number;
-    uri: String;
+    uri: string;
     type: Type;
-    contentType: String;
+    contentType: string;
 
-    recordUrl?: String;
-    filename?: String;
+    recordUrl?: string;
+    filename?: string;
     duration?: Number;
     fileType?: AttachmentsTypep;
     createrAt?: Date;

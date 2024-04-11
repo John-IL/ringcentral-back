@@ -6,6 +6,7 @@ import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto'
 import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
 import { SearchMessagesDto } from './dto/search-messages.dto.';
 import { FindMessagesDto } from './dto/find-messages.dto';
+import { MigrateMessagesDto } from './dto/migrate-messages.dto';
 
 
 @ApiTags('ringcentral')
@@ -33,10 +34,9 @@ export class MessagesController {
     return this.messagesService.findOne(findMessageDto);
   }
 
-
   @Post('/migrate')
-  syncMessages(@Body() findMessageDto: FindMessagesDto) {
-    return this.messagesService.findOne(findMessageDto);
+  syncMessages(@Body() migrateMessageDto: MigrateMessagesDto) {
+    return this.messagesService.migrate(migrateMessageDto);
   }
 
   @Patch(':id')

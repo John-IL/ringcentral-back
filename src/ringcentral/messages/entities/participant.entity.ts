@@ -8,10 +8,10 @@ export class Participant {
     @Matches(/^\(\d{3}\)\s\d{3}-\d{4}$/, {
         message: 'phoneNumber must be in the format (###) ###-####'
     })
-    phoneNumber: String;
+    phoneNumber: string;
     
-    name?: String;
-    location?: String;
+    name?: string;
+    location?: string;
     leadId?: Number;
-    clientAccountId?: String;
+    clientAccountId?: string;
 }

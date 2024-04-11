@@ -1,9 +1,9 @@
 import { User } from '@/ringcentral/messages/entities/user.entity';
 
 export class Chat {
-    id: String;
-    firstNumber: String;
-    secondNumber: String;
+    id: string;
+    firstNumber: string;
+    secondNumber: string;
     creationDate: Date;
     createdBy: User
 }

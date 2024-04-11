@@ -10,6 +10,7 @@ import { ChatsService } from '../chats/chats.service';
 import { SearchMessagesDto } from './dto/search-messages.dto.';
 import { Message } from './entities/message.entity';
 import { FindMessagesDto } from './dto/find-messages.dto';
+import { MigrateMessagesDto } from './dto/migrate-messages.dto';
 
 @Injectable()
 export class MessagesService {
@@ -103,6 +104,19 @@ export class MessagesService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async migrate(params: MigrateMessagesDto){
+    const { rcToken, date } = params;
+
+    return this.commonsService.getAllMessages(rcToken, date);
+
+    const existingChat = await this.chatsService.findChatPhoneNumbers("","");
+    if (!existingChat) {
+      throw new NotFoundException('Chat not found');
+    }
+
+    return null;
   }
 
   update(id: number, updateMessageDto: UpdateMessageDto) {
