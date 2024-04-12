@@ -8,10 +8,19 @@ import { Messages, MessagesDocument, MessageResources } from '@/ringcentral/mess
 import { CommonsService } from '@/ringcentral/commons/commons.service'
 import { ChatsService } from '../chats/chats.service';
 import { SearchMessagesDto } from './dto/search-messages.dto.';
-import { Message } from './entities/message.entity';
+import { Message } from '@/ringcentral/messages/entities/message.entity';
 import { FindMessagesDto } from './dto/find-messages.dto';
 import { MigrateMessagesDto } from './dto/migrate-messages.dto';
-
+import { ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
+import { CreateChatDto } from '@/ringcentral/chats/dto/create-chat.dto';
+import { TypeChat } from "@/ringcentral/chats/schema/chats.schema";
+import { Participant } from '@/ringcentral/messages/entities/participant.entity';
+import { ObjectId } from 'mongodb';
+import axios from "axios";
+import { Credential } from '@/ringcentral/messages/entities/credential.entity';
+import * as AWS from 'aws-sdk';
+import { SDK } from '@ringcentral/sdk';
+import { PassThrough } from 'stream';
 @Injectable()
 export class MessagesService {
 
@@ -52,7 +61,24 @@ export class MessagesService {
     const { chatId, page } = params;
     const skip = (page - 1) * pageSize;
 
-    const list = await this.MessagesModule.find({ chatId }).sort({ createdAt: -1 }).skip(skip).limit(pageSize).exec();
+    let list = await this.MessagesModule.find({ chatId: new ObjectId(chatId) }).sort({ creationTime: -1 }).skip(skip).limit(pageSize).exec();
+
+    const s3 = new AWS.S3();
+    for (let message of list) {
+      if (message.attachments && message.attachments.length > 0) {
+        for (let file of message.attachments) {
+          const params = {
+            Bucket: process.env.AWS_BUCKET,
+            Key: file.recordUrl,
+            Expires: 3600,
+          };
+
+          const signedUrl = await s3.getSignedUrlPromise('getObject', params);
+          file.recordUrl = signedUrl;
+        };
+      }
+    };
+
     return list;
   }
 
@@ -60,11 +86,11 @@ export class MessagesService {
     const pageSize = 20;
     const { chatId, text } = params;
 
-    const list = await this.MessagesModule.aggregate([
+    let list: MessagesDocument[] = await this.MessagesModule.aggregate([
       {
         $match: {
           $and: [
-            { chatId },
+            { chatId: new ObjectId(chatId) },
             {
               subject: {
                 $regex: text, $options: 'i'
@@ -74,7 +100,7 @@ export class MessagesService {
         }
       },
       {
-        $sort: { 'createdAt': -1 }
+        $sort: { 'creationTime': -1 }
       },
       {
         $limit: pageSize
@@ -91,7 +117,7 @@ export class MessagesService {
       const message = await this.MessagesModule.aggregate([
         {
           $match: {
-            chatId: chatId,
+            chatId: new ObjectId(chatId),
             [column]: value
           }
         },
@@ -106,17 +132,101 @@ export class MessagesService {
     }
   }
 
-  async migrate(params: MigrateMessagesDto){
+  async migrate(params: MigrateMessagesDto) {
     const { rcToken, date } = params;
 
-    return this.commonsService.getAllMessages(rcToken, date);
+    const rcsdk = new SDK({
+      server: SDK.server.production,
+      clientId: process.env.RINGCENTRAL_CLIENT_ID,
+      clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
+    });
+    const platform = rcsdk.platform();
+    await platform.login({ jwt: rcToken });
 
-    const existingChat = await this.chatsService.findChatPhoneNumbers("","");
-    if (!existingChat) {
-      throw new NotFoundException('Chat not found');
-    }
+    const api = process.env.NEW_BACK_URL + '/ring-central/credentials/all';
+    const responseCredentials = await axios.get(api);
+    const credentials: Credential[] = responseCredentials.data;
 
-    return null;
+    let messages: Message[] = await this.commonsService.getAllMessages(platform, date);
+    // console.log(messages);
+
+    for (let message of messages) {
+      const list = await this.MessagesModule.findOne({ id: message.id }).exec();
+
+      if (list) return;
+
+      const firstNumber: string = this.commonsService.formatPhoneNumber(message.from.phoneNumber);
+      const secondNumber: string = this.commonsService.formatPhoneNumber(message.to[0].phoneNumber);
+
+      let existChat: ChatsDocument = await this.chatsService.findChatPhoneNumbers(firstNumber, secondNumber);
+
+      if (!existChat) {
+        const firstParticipant: Participant = {
+          phoneNumber: firstNumber,
+          searchPhoneNumber: message.from.phoneNumber.slice(2)
+        };
+        const secondParticipant: Participant = {
+          phoneNumber: secondNumber,
+          searchPhoneNumber: message.to[0].phoneNumber.slice(2)
+        };
+
+        const newChat: CreateChatDto = {
+          firstParticipant,
+          secondParticipant,
+          type: TypeChat.LEAD
+        };
+
+        try {
+          existChat = await this.chatsService.create(newChat, credentials);
+        } catch (e) {
+          return;
+        }
+
+      }
+
+      message.resource = MessageResources.MIGRATION;
+      message.chatId = existChat._id;
+
+      if (message.attachments ?? message.attachments.length > 0) {
+        const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
+        if (index !== -1) {
+          message.attachments.splice(index, 1);
+        }
+
+        const s3 = new AWS.S3();
+        for (let file of message.attachments) {
+
+          const response: any = await platform.get(file.uri);
+          const contentBody: PassThrough = response.body;
+
+          if (contentBody) {
+            const fileName = "messages_files/" + file.id;
+
+            const params: AWS.S3.PutObjectRequest = {
+              Bucket: process.env.AWS_BUCKET,
+              Key: fileName,
+              Body: contentBody
+            };
+
+            await s3.upload(params).promise();
+            file.recordUrl = fileName;
+
+          }
+        };
+
+
+      };
+
+      this.MessagesModule.create(message)
+
+    };
+
+    return messages;
+  }
+
+
+  getDirectionMessage() {
+
   }
 
   update(id: number, updateMessageDto: UpdateMessageDto) {

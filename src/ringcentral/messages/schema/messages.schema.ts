@@ -5,7 +5,7 @@ import * as moment from 'moment-timezone';
 
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
 import { User } from '@/ringcentral/messages/entities/user.entity';
-import { Participant } from '@/ringcentral/messages/entities/participant.entity'
+import { ParticipantRc } from '@/ringcentral/messages/entities/participantRc.entity'
 
 export enum MessageType {
     FAX = "FAX",
@@ -44,10 +44,19 @@ export type MessagesDocument = Messages & Document;
 export class Messages {
 
     @Prop()
+    id: Number;
+
+    @Prop()
     conversationId: Number;
 
     @Prop({ type: Types.ObjectId, ref: 'chats' })
     chatId: Types.ObjectId;
+
+    @Prop()
+    to: ParticipantRc[];
+
+    @Prop()
+    from: ParticipantRc;
 
     @Prop({ type: String, enum: Object.values(MessageType) })
     type: MessageType;

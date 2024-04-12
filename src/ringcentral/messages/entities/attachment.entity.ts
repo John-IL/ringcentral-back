@@ -7,7 +7,7 @@ export enum Type {
     MmsAttachment = "MmsAttachment"
 }
 
-export enum AttachmentsTypep{
+export enum AttachmentsType{
     Image = "Image",
     Audio = "Audio",
     Video = "Video",
@@ -24,6 +24,6 @@ export class Attachments {
     recordUrl?: string;
     filename?: string;
     duration?: Number;
-    fileType?: AttachmentsTypep;
+    fileType?: AttachmentsType;
     createrAt?: Date;
 }

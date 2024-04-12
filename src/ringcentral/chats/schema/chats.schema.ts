@@ -24,7 +24,7 @@ export class Chats {
     type: TypeChat;
 
     @Prop({ default: () => moment.tz('America/Los_Angeles') })
-    creationTime: Date;
+    createdAt: Date;
 
     @Prop()
     createdBy: User;
