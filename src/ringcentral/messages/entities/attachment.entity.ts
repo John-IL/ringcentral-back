@@ -21,6 +21,7 @@ export class Attachments {
     type: Type;
     contentType: string;
 
+    route?: string;
     recordUrl?: string;
     filename?: string;
     duration?: Number;

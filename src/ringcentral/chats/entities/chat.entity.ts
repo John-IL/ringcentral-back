@@ -5,5 +5,6 @@ export class Chat {
     firstNumber: string;
     secondNumber: string;
     creationDate: Date;
-    createdBy: User
+    createdBy: User;
+    isBlocked?: Boolean;
 }

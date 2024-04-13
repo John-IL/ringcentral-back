@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import * as moment from 'moment-timezone'; 
+import * as moment from 'moment-timezone';
 import { Participant } from '@/ringcentral/messages/entities/participant.entity';
 import { User } from '@/ringcentral/messages/entities/user.entity';
 
@@ -28,6 +28,9 @@ export class Chats {
 
     @Prop()
     createdBy: User;
+
+    @Prop({ default: () => false })
+    isBlocked: Boolean;
 }
 
 export const ChatsSchema = SchemaFactory.createForClass(Chats);

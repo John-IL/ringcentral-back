@@ -7,9 +7,11 @@ export class SearchMessagesDto {
     @IsString()
     chatId: string;
 
+    @ApiProperty()
     @IsOptional()
     page: number;
 
+    @ApiProperty()
     @IsOptional()
     text: string;
 }

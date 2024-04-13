@@ -7,6 +7,10 @@ import { Chats, ChatsDocument } from './schema/chats.schema';
 import { Messages, MessagesDocument } from '../messages/schema/messages.schema';
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
 import { TypeChat } from "@/ringcentral/chats/schema/chats.schema"
+import { ObjectId } from 'mongodb';
+import { MessagesModule } from '../messages/messages.module';
+import { Attachments } from '../messages/entities/attachment.entity';
+import * as AWS from 'aws-sdk';
 @Injectable()
 export class ChatsService {
 
@@ -61,13 +65,15 @@ export class ChatsService {
         {
           "$and":
             [
-              { "firstParticipant.phoneNumber": phoneNumber }
+              { "firstParticipant.phoneNumber": phoneNumber },
+              { "isBlocked": false }
             ]
         },
         {
           "$and":
             [
-              { "secondParticipant.phoneNumber": phoneNumber }
+              { "secondParticipant.phoneNumber": phoneNumber },
+              { "isBlocked": false }
             ]
         },
       ]
@@ -202,8 +208,42 @@ export class ChatsService {
     return chat;
   }
 
-  async update(id: number, updateChatDto: UpdateChatDto) {
-    return `This action updates a #${id} chat`;
+
+  async getAllFilesByChat(chatId: string): Promise<MessagesModule[]> {
+
+    const files = await this.MessagesModule.aggregate([
+      { $match: { chatId: new ObjectId(chatId) } },
+      { $sort: { creationTime: -1 } },
+      { $unwind: "$attachments" },
+      { $project: { _id: 0, file: "$attachments" } }
+    ]);
+
+    const fileList: Attachments[] = files.map(message => message.file);
+
+    const s3 = new AWS.S3();
+    for (let file of fileList) {
+      const params = {
+        Bucket: process.env.AWS_BUCKET,
+        Key: file.recordUrl,
+        Expires: 3600,
+      };
+
+      const signedUrl = await s3.getSignedUrlPromise('getObject', params);
+      file.route = signedUrl;
+    }
+
+    return fileList ?? [];
+  }
+
+
+
+  async update(id: string, updateChatDto: UpdateChatDto) {
+
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid message id');
+    }
+
+    return this.ChatsModule.updateOne({ _id: id }, updateChatDto);
   }
 
   remove(id: number) {

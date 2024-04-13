@@ -33,9 +33,14 @@ export class ChatsController {
     return this.chatsService.findOne(id);
   }
 
+  @Get('/files/:id')
+  getFilesByChatId(@Param('id') id: string) {
+    return this.chatsService.getAllFilesByChat(id);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateChatDto: UpdateChatDto) {
-    return this.chatsService.update(+id, updateChatDto);
+    return this.chatsService.update(id, updateChatDto);
   }
 
   @Delete(':id')

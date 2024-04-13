@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Model } from 'mongoose'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose';
 
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
@@ -21,6 +21,7 @@ import { Credential } from '@/ringcentral/messages/entities/credential.entity';
 import * as AWS from 'aws-sdk';
 import { SDK } from '@ringcentral/sdk';
 import { PassThrough } from 'stream';
+
 @Injectable()
 export class MessagesService {
 
@@ -224,14 +225,14 @@ export class MessagesService {
     return messages;
   }
 
+  async update(id: string, updateMessageDto: UpdateMessageDto) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid message id');
+    }
 
-  getDirectionMessage() {
-
+    return this.MessagesModule.updateOne({ _id: id }, updateMessageDto);
   }
 
-  update(id: number, updateMessageDto: UpdateMessageDto) {
-    return `This action updates a #${id} message`;
-  }
 
   remove(id: number) {
     return `This action removes a #${id} message`;
