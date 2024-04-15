@@ -24,6 +24,7 @@ export class CommonsService {
             const allRecords: Message[] = [];
             let page = 1;
 
+
             body['perPage'] = '1000';
 
             while (true) {
@@ -31,13 +32,14 @@ export class CommonsService {
                 const apiResponse = await platform.get(endPoint, body);
                 const rcRecords = await apiResponse.json();
                 const headers = apiResponse.headers;
+                
+                allRecords.push(...rcRecords.records);
+                ++page;
 
                 if (!rcRecords.paging?.pageEnd) {
                     break;
                 }
-
-                allRecords.push(...rcRecords.records);
-                ++page;
+                
 
                 if (headers.get('x-rate-limit-remaining') == '1') {
                     await new Promise(resolve => setTimeout(resolve, 60));
@@ -66,7 +68,8 @@ export class CommonsService {
             },
             to: [
                 {
-                    phoneNumber: "1" + parsedPhoneNumber
+                    // phoneNumber: "1" + parsedPhoneNumber
+                    phoneNumber: "16263467630"
                 },
             ],
             text: message.subject,

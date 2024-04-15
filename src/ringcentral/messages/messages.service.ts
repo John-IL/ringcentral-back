@@ -33,7 +33,7 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
 
-    return 1;
+    return 1; 
 
     const { chatId } = createMessageDto;
 
@@ -42,23 +42,29 @@ export class MessagesService {
       throw new NotFoundException('Chat not found');
     }
 
-    const response = await this.commonsService.processMessage(createMessageDto);
-    let message: Message = {
-      ...response
-    };
+    try {
 
-    message.chatId = createMessageDto.chatId;
-    message.createdBy = createMessageDto.createdBy;
-    message.resource = MessageResources.CHAT;
+      const response = await this.commonsService.processMessage(createMessageDto);
+      let message: Message = {
+        ...response
+      };
 
-    await this.MessagesModule.create(message)
+      message.chatId = createMessageDto.chatId;
+      message.createdBy = createMessageDto.createdBy;
+      message.resource = MessageResources.CHAT;
 
-    return response;
+      await this.MessagesModule.create(message)
+      return response;
+
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+
   }
 
 
   async findAll(params: SearchMessagesDto) {
-    const pageSize = 10;
+    const pageSize = 50;
     const { chatId, page } = params;
     const skip = (page - 1) * pageSize;
 
@@ -149,7 +155,6 @@ export class MessagesService {
     const credentials: Credential[] = responseCredentials.data;
 
     let messages: Message[] = await this.commonsService.getAllMessages(platform, date);
-    // console.log(messages);
 
     for (let message of messages) {
       const list = await this.MessagesModule.findOne({ id: message.id }).exec();
@@ -164,11 +169,13 @@ export class MessagesService {
       if (!existChat) {
         const firstParticipant: Participant = {
           phoneNumber: firstNumber,
-          searchPhoneNumber: message.from.phoneNumber.slice(2)
+          searchPhoneNumber: message.from.phoneNumber.slice(2),
+          name: message.from.name
         };
         const secondParticipant: Participant = {
           phoneNumber: secondNumber,
-          searchPhoneNumber: message.to[0].phoneNumber.slice(2)
+          searchPhoneNumber: message.to[0].phoneNumber.slice(2),
+          name: message.to[0].name
         };
 
         const newChat: CreateChatDto = {

@@ -51,7 +51,6 @@ export class ChatsService {
       createChatDto.secondParticipant.name = secondModule.rc_name;
     }
 
-
     const created = await this.ChatsModule.create(createChatDto)
     return created;
   }
