@@ -31,6 +31,12 @@ export class Chats {
 
     @Prop({ default: () => false })
     isBlocked: Boolean;
+
+    @Prop()
+    blockedBy: User;
+
+    @Prop()
+    readBy: User;
 }
 
 export const ChatsSchema = SchemaFactory.createForClass(Chats);

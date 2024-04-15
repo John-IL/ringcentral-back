@@ -58,7 +58,7 @@ export class MessagesService {
 
 
   async findAll(params: SearchMessagesDto) {
-    const pageSize = 100;
+    const pageSize = 10;
     const { chatId, page } = params;
     const skip = (page - 1) * pageSize;
 

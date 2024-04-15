@@ -109,8 +109,8 @@ export class ChatsService {
             {
               $match: {
                 $expr: { $eq: ['$chatId', '$$chatId'] },
-                direction: 'INBOUND',
-                readBy: { $exists: false }
+                direction: 'Inbound',
+                readStatus: 'Unread'
               },
             },
             {
@@ -208,7 +208,6 @@ export class ChatsService {
     return chat;
   }
 
-
   async getAllFilesByChat(chatId: string): Promise<MessagesModule[]> {
 
     const files = await this.MessagesModule.aggregate([
@@ -235,15 +234,21 @@ export class ChatsService {
     return fileList ?? [];
   }
 
-
-
   async update(id: string, updateChatDto: UpdateChatDto) {
 
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid message id');
+      throw new BadRequestException('Invalid chat id');
     }
 
     return this.ChatsModule.updateOne({ _id: id }, updateChatDto);
+  }
+
+  async readAllMessages(id: string, updateChatDto: UpdateChatDto) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid chat id');
+    }
+
+    return this.MessagesModule.updateMany({ chatId : new ObjectId(id) }, updateChatDto);
   }
 
   remove(id: number) {

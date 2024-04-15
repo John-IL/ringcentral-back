@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ChatsService } from './chats.service';
-import { ChatsController } from './chats.controller';
+import { ChatsService } from '@/ringcentral/chats/chats.service';
+import { ChatsController } from '@/ringcentral/chats/chats.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Chats, ChatsSchema } from './schema/chats.schema';
-import {  Messages, MessagesSchema } from '../messages/schema/messages.schema';
+import { Chats, ChatsSchema } from '@/ringcentral/chats/schema/chats.schema';
+import {  Messages, MessagesSchema } from '@/ringcentral/messages/schema/messages.schema';
 
 @Module({
   imports:[
