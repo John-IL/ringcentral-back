@@ -7,7 +7,7 @@ export class Message {
     id: Number;
     conversationId: Number;
     chatId: string;
-    to: ParticipantRc[];
+    to?: ParticipantRc[];
     from: ParticipantRc;
     type: MessageType;
     creationTime: Date;

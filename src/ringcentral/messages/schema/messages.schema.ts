@@ -8,7 +8,7 @@ import { User } from '@/ringcentral/messages/entities/user.entity';
 import { ParticipantRc } from '@/ringcentral/messages/entities/participantRc.entity'
 
 export enum MessageType {
-    FAX = "FAX",
+    Fax = "Fax",
     SMS = "SMS",
     VoiceMail = "VoiceMail",
     Pager = "Pager",
@@ -53,7 +53,7 @@ export class Messages {
     chatId: Types.ObjectId;
 
     @Prop()
-    to: ParticipantRc[];
+    to?: ParticipantRc[];
 
     @Prop()
     from: ParticipantRc;

@@ -247,7 +247,39 @@ export class ChatsService {
       throw new BadRequestException('Invalid chat id');
     }
 
-    return this.MessagesModule.updateMany({ chatId : new ObjectId(id) }, updateChatDto);
+    return this.MessagesModule.updateMany({ chatId: new ObjectId(id) }, updateChatDto);
+  }
+
+  async getTotalUnreadMessages(phoneNumber: string): Promise<number> {
+    const aggregateQuery = [
+      {
+        $lookup: {
+          from: 'chats',
+          localField: 'chatId',
+          foreignField: '_id',
+          as: 'chat',
+        },
+      },
+      { $unwind: '$chat' },
+      {
+        $match: {
+          $or: [
+            { 'chat.firstParticipant.phoneNumber': phoneNumber },
+            { 'chat.secondParticipant.phoneNumber': phoneNumber },
+          ],
+          'readStatus': 'Unread',
+          'direction': 'Inbound'
+        },
+      },
+      { $count: 'totalUnreadMessages' },
+    ];
+
+    const result = await this.MessagesModule.aggregate(aggregateQuery).exec();
+    if (result.length > 0) {
+      return result[0].totalUnreadMessages;
+    } else {
+      return 0;
+    }
   }
 
   remove(id: number) {

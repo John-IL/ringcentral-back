@@ -33,6 +33,11 @@ export class ChatsController {
     return this.chatsService.findOne(id);
   }
 
+  @Get('/unread/:phoneNumber')
+  getTotalUnreadMessages(@Param('phoneNumber') phoneNumber: string) {
+    return this.chatsService.getTotalUnreadMessages(phoneNumber);
+  }
+
   @Get('/:id/files')
   getFilesByChatId(@Param('id') id: string) {
     return this.chatsService.getAllFilesByChat(id);
@@ -47,6 +52,8 @@ export class ChatsController {
   readAllMessages(@Param('id') id: string, @Body() updateChatDto: UpdateChatDto) {
     return this.chatsService.readAllMessages(id, updateChatDto);
   }
+
+
 
   @Delete(':id')
   remove(@Param('id') id: string) {

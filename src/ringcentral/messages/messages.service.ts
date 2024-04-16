@@ -21,6 +21,7 @@ import { Credential } from '@/ringcentral/messages/entities/credential.entity';
 import * as AWS from 'aws-sdk';
 import { SDK } from '@ringcentral/sdk';
 import { PassThrough } from 'stream';
+import { Console } from 'console';
 
 @Injectable()
 export class MessagesService {
@@ -33,7 +34,7 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
 
-    return 1; 
+    return 1;
 
     const { chatId } = createMessageDto;
 
@@ -69,8 +70,8 @@ export class MessagesService {
     const skip = (page - 1) * pageSize;
 
     let list = await this.MessagesModule.find({ chatId: new ObjectId(chatId) }).sort({ creationTime: -1 }).skip(skip).limit(pageSize).exec();
-
     const s3 = new AWS.S3();
+
     for (let message of list) {
       if (message.attachments && message.attachments.length > 0) {
         for (let file of message.attachments) {
@@ -84,9 +85,31 @@ export class MessagesService {
           file.recordUrl = signedUrl;
         };
       }
+
     };
 
-    return list;
+
+    let finishArray: any[] = [];
+
+    for (let i = 0; i < list.length; i++) {
+      const message = list[i];
+
+      finishArray.push(message);
+
+      const addDate = this.addNewDate(message);
+
+      if (i + 1 < list.length) {
+        const nextDate = this.addNewDate(list[i + 1]);
+
+        if (addDate !== nextDate) {
+          finishArray.push({ chatId: null, day: addDate });
+        }
+      } else {
+        finishArray.push({ chatId: null, day: addDate });
+      }
+    };
+
+    return finishArray;
   }
 
   async findByText(params: SearchMessagesDto) {
@@ -154,82 +177,101 @@ export class MessagesService {
     const responseCredentials = await axios.get(api);
     const credentials: Credential[] = responseCredentials.data;
 
-    let messages: Message[] = await this.commonsService.getAllMessages(platform, date);
+    try {
 
-    for (let message of messages) {
-      const list = await this.MessagesModule.findOne({ id: message.id }).exec();
+      let messages: Message[] = await this.commonsService.getAllMessages(platform, date);
+      for (let message of messages) {
 
-      if (list) return;
+        const list = await this.MessagesModule.findOne({ id: message.id }).exec();
 
-      const firstNumber: string = this.commonsService.formatPhoneNumber(message.from.phoneNumber);
-      const secondNumber: string = this.commonsService.formatPhoneNumber(message.to[0].phoneNumber);
+        if (list) continue;
 
-      let existChat: ChatsDocument = await this.chatsService.findChatPhoneNumbers(firstNumber, secondNumber);
+        let firstNumber: string;
+        let secondNumber: string;
+        let secondNumberFormat: string;
+        let secondNumberName: string;
 
-      if (!existChat) {
-        const firstParticipant: Participant = {
-          phoneNumber: firstNumber,
-          searchPhoneNumber: message.from.phoneNumber.slice(2),
-          name: message.from.name
-        };
-        const secondParticipant: Participant = {
-          phoneNumber: secondNumber,
-          searchPhoneNumber: message.to[0].phoneNumber.slice(2),
-          name: message.to[0].name
-        };
-
-        const newChat: CreateChatDto = {
-          firstParticipant,
-          secondParticipant,
-          type: TypeChat.LEAD
-        };
-
-        try {
-          existChat = await this.chatsService.create(newChat, credentials);
-        } catch (e) {
-          return;
+        firstNumber = this.commonsService.formatPhoneNumber(message.from.phoneNumber);
+        if (message.type == "Fax" && !message.to) {
+          secondNumber = this.commonsService.formatPhoneNumber(message.subject);
+          secondNumberFormat = message.subject;
+          secondNumberName = "";
+        } else {
+          secondNumber = this.commonsService.formatPhoneNumber(message.to[0].phoneNumber);
+          secondNumberFormat = message.to[0].phoneNumber;
+          secondNumberName = message.to[0].name;
         }
 
-      }
+        let existChat: ChatsDocument = await this.chatsService.findChatPhoneNumbers(firstNumber, secondNumber);
 
-      message.resource = MessageResources.MIGRATION;
-      message.chatId = existChat._id;
+        if (!existChat) {
+          const firstParticipant: Participant = {
+            phoneNumber: firstNumber,
+            searchPhoneNumber: message.from.phoneNumber.slice(2),
+            name: message.from.name
+          };
+          const secondParticipant: Participant = {
+            phoneNumber: secondNumber,
+            searchPhoneNumber: secondNumberFormat.slice(2),
+            name: secondNumberName
+          };
 
-      if (message.attachments ?? message.attachments.length > 0) {
-        const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
-        if (index !== -1) {
-          message.attachments.splice(index, 1);
-        }
+          const newChat: CreateChatDto = {
+            firstParticipant,
+            secondParticipant,
+            type: TypeChat.LEAD
+          };
 
-        const s3 = new AWS.S3();
-        for (let file of message.attachments) {
-
-          const response: any = await platform.get(file.uri);
-          const contentBody: PassThrough = response.body;
-
-          if (contentBody) {
-            const fileName = "messages_files/" + file.id;
-
-            const params: AWS.S3.PutObjectRequest = {
-              Bucket: process.env.AWS_BUCKET,
-              Key: fileName,
-              Body: contentBody
-            };
-
-            await s3.upload(params).promise();
-            file.recordUrl = fileName;
-
+          try {
+            existChat = await this.chatsService.create(newChat, credentials);
+          } catch (e) {
+            console.log(e);
+            return;
           }
+
+        }
+
+
+        message.resource = MessageResources.MIGRATION;
+        message.chatId = existChat._id;
+
+        if (message.attachments ?? message.attachments.length > 0) {
+          const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
+          if (index !== -1) {
+            message.attachments.splice(index, 1);
+          }
+
+          const s3 = new AWS.S3();
+          for (let file of message.attachments) {
+
+            const response: any = await platform.get(file.uri);
+            const contentBody: PassThrough = response.body;
+
+            if (contentBody) {
+              const fileName = "messages_files/" + file.id;
+
+              const params: AWS.S3.PutObjectRequest = {
+                Bucket: process.env.AWS_BUCKET,
+                Key: fileName,
+                Body: contentBody
+              };
+
+              await s3.upload(params).promise();
+              file.recordUrl = fileName;
+
+            }
+          };
         };
 
+        this.MessagesModule.create(message)
 
       };
 
-      this.MessagesModule.create(message)
+      return messages;
 
-    };
-
-    return messages;
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async update(id: string, updateMessageDto: UpdateMessageDto) {
@@ -243,5 +285,32 @@ export class MessagesService {
 
   remove(id: number) {
     return `This action removes a #${id} message`;
+  }
+
+
+  addNewDate(item: any): string {
+    const currentDate = new Date();
+    const providedDate = new Date(item.creationTime);
+
+    const currentDateWithoutTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const providedDateWithoutTime = new Date(providedDate.getFullYear(), providedDate.getMonth(), providedDate.getDate());
+
+    const differenceInDays = Math.floor((currentDateWithoutTime.getTime() - providedDateWithoutTime.getTime()) / (1000 * 3600 * 24));
+
+    let dayAdd: string;
+
+    if (differenceInDays === 0) {
+      dayAdd = 'Today';
+    } else if (differenceInDays === 1) {
+      dayAdd = 'Yesterday';
+    } else if (differenceInDays < 7) {
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      dayAdd = daysOfWeek[providedDate.getDay()];
+    } else {
+      const month = ('0' + (providedDate.getMonth() + 1)).slice(-2);
+      const day = ('0' + providedDate.getDate()).slice(-2);
+      dayAdd = `${month}/${day}/${providedDate.getFullYear()}`;
+    }
+    return dayAdd;
   }
 }
