@@ -7,6 +7,7 @@ import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto'
 import { SearchMessagesDto } from './dto/search-messages.dto.';
 import { FindMessagesDto } from './dto/find-messages.dto';
 import { MigrateMessagesDto } from './dto/migrate-messages.dto';
+import { ImportantMessageDto } from './dto/important-message.dto';
 
 
 @ApiTags('ringcentral')
@@ -27,6 +28,11 @@ export class MessagesController {
   @Post('/search')
   findByText(@Body() searchChatDto: SearchMessagesDto) {
     return this.messagesService.findByText(searchChatDto);
+  }
+
+  @Post('/asign-important')
+  asignImportantMessage(@Body() importantMessageDto: ImportantMessageDto) {
+    return this.messagesService.asignImportantMessage(importantMessageDto);
   }
 
   @Post('/find')

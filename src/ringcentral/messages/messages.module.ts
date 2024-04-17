@@ -6,6 +6,7 @@ import { MessagesController } from '@/ringcentral/messages/messages.controller';
 import { Messages, MessagesSchema } from '@/ringcentral/messages/schema/messages.schema';
 import { CommonsModule } from '@/ringcentral/commons/commons.module'
 import { ChatsModule } from '@/ringcentral/chats/chats.module';
+import { WebsocketsModule } from '@/websockets/websockets.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { ChatsModule } from '@/ringcentral/chats/chats.module';
       }
     ]),
     CommonsModule,
-    ChatsModule
+    ChatsModule,
+    WebsocketsModule
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

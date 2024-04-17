@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as AWS from 'aws-sdk';
+import * as cors from 'cors';
 
 
 async function bootstrap() {
@@ -21,11 +22,12 @@ async function bootstrap() {
   SwaggerModule.setup('documentation', app, document);
 
   app.setGlobalPrefix('api');
-  app.enableCors();
 
+  // app.enableCors();
+  app.use(cors());
 
   AWS.config.update({
-    accessKeyId:  process.env.AWS_ACCESS_KEY_ID,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_DEFAULT_REGION,
   });

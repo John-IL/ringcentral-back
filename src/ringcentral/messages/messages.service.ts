@@ -1,27 +1,29 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import axios from "axios";
+import * as AWS from 'aws-sdk';
+import { SDK } from '@ringcentral/sdk';
+import { PassThrough } from 'stream';
+
 import { Model, Types } from 'mongoose'
+import { ObjectId } from 'mongodb';
 import { InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
 import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
 import { Messages, MessagesDocument, MessageResources } from '@/ringcentral/messages/schema/messages.schema';
 import { CommonsService } from '@/ringcentral/commons/commons.service'
-import { ChatsService } from '../chats/chats.service';
-import { SearchMessagesDto } from './dto/search-messages.dto.';
+import { ChatsService } from '@/ringcentral/chats/chats.service';
+import { SearchMessagesDto } from '@/ringcentral/messages/dto/search-messages.dto.';
 import { Message } from '@/ringcentral/messages/entities/message.entity';
-import { FindMessagesDto } from './dto/find-messages.dto';
-import { MigrateMessagesDto } from './dto/migrate-messages.dto';
+import { FindMessagesDto } from '@/ringcentral/messages/dto/find-messages.dto';
+import { MigrateMessagesDto } from '@/ringcentral/messages/dto/migrate-messages.dto';
 import { ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
 import { CreateChatDto } from '@/ringcentral/chats/dto/create-chat.dto';
 import { TypeChat } from "@/ringcentral/chats/schema/chats.schema";
 import { Participant } from '@/ringcentral/messages/entities/participant.entity';
-import { ObjectId } from 'mongodb';
-import axios from "axios";
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
-import * as AWS from 'aws-sdk';
-import { SDK } from '@ringcentral/sdk';
-import { PassThrough } from 'stream';
-import { Console } from 'console';
+import { WebsocketsGateway } from "@/websockets/websockets.gateway";
+import { ImportantMessageDto } from "./dto/important-message.dto";
 
 @Injectable()
 export class MessagesService {
@@ -30,6 +32,7 @@ export class MessagesService {
     @InjectModel(Messages.name) private MessagesModule: Model<MessagesDocument>,
     private readonly commonsService: CommonsService,
     private readonly chatsService: ChatsService,
+    private readonly websocketsGateway: WebsocketsGateway,
   ) { }
 
   async create(createMessageDto: CreateMessageDto) {
@@ -279,8 +282,38 @@ export class MessagesService {
       throw new BadRequestException('Invalid message id');
     }
 
-    return this.MessagesModule.updateOne({ _id: id }, updateMessageDto);
+    await this.MessagesModule.updateOne({ _id: id }, updateMessageDto);
+    const message = await this.MessagesModule.findById(id);
+
+    this.websocketsGateway.sendNotification('notification-update-message', message);
+
+    return message;
   }
+
+  async asignImportantMessage(updateMessageDto: ImportantMessageDto) {
+    const { messageId, chatId, important } = updateMessageDto;
+
+    if (!Types.ObjectId.isValid(messageId)) {
+      throw new BadRequestException('Invalid message id');
+    }
+
+    if (!Types.ObjectId.isValid(chatId)) {
+      throw new BadRequestException('Invalid chat id');
+    }
+
+    if (important) {
+      await this.MessagesModule.updateMany({ chatId: new ObjectId(chatId), important: true }, { $set: { important: false } });
+    }
+
+    await this.MessagesModule.updateOne({ _id: new ObjectId(messageId) }, { $set: { important: important } });
+
+    const message = await this.MessagesModule.findById(messageId);
+
+    this.websocketsGateway.sendNotification('notification-update-message-important', message);
+
+    return message;
+  }
+
 
 
   remove(id: number) {

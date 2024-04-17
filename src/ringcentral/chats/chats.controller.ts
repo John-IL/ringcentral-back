@@ -6,11 +6,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { SearchChatDto } from './dto/search-chat.dto';
 import axios from "axios";
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
+import { FindClientChatDto } from './dto/find-client-chat.dto';
 
 @ApiTags('ringcentral')
 @Controller('ringcentral/chats')
 export class ChatsController {
-  constructor(private readonly chatsService: ChatsService) {}
+  constructor(private readonly chatsService: ChatsService) { }
 
   @Post()
   async create(@Body() createChatDto: CreateChatDto) {
@@ -27,6 +28,13 @@ export class ChatsController {
     const { phoneNumber, page, text } = searchChatDto;
     return this.chatsService.findAll(phoneNumber, page, text);
   }
+
+  @Post('/client')
+  findChatClient(@Body() findClientChatDto: FindClientChatDto) {
+    const { modulePhoneNumber, clientPhoneNumber } = findClientChatDto;
+    return this.chatsService.findChatPhoneNumbers(modulePhoneNumber, clientPhoneNumber);
+  }
+
 
   @Get(':id')
   findOne(@Param('id') id: string) {

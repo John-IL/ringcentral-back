@@ -1,22 +1,31 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { CreateChatDto } from './dto/create-chat.dto';
-import { UpdateChatDto } from './dto/update-chat.dto';
+import * as AWS from 'aws-sdk';
 import { Model, Types } from 'mongoose'
-import { Chats, ChatsDocument } from './schema/chats.schema';
-import { Messages, MessagesDocument } from '../messages/schema/messages.schema';
+
+
+import { InjectModel } from '@nestjs/mongoose';
+import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ObjectId } from 'mongodb';
+
+
+
+import { UpdateChatDto } from '@/ringcentral/chats/dto/update-chat.dto';
+import { Chats, ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
+import { Messages, MessagesDocument } from '@/ringcentral/messages/schema/messages.schema';
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
 import { TypeChat } from "@/ringcentral/chats/schema/chats.schema"
-import { ObjectId } from 'mongodb';
-import { MessagesModule } from '../messages/messages.module';
-import { Attachments } from '../messages/entities/attachment.entity';
-import * as AWS from 'aws-sdk';
+import { MessagesModule } from '@/ringcentral/messages/messages.module';
+import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
+import { CreateChatDto } from '@/ringcentral/chats/dto/create-chat.dto';
+import { WebsocketsGateway } from "@/websockets/websockets.gateway";
+import { FindClientChatDto } from './dto/find-client-chat.dto';
+
 @Injectable()
 export class ChatsService {
 
   constructor(
     @InjectModel(Chats.name) private readonly ChatsModule: Model<ChatsDocument>,
     @InjectModel(Messages.name) private readonly MessagesModule: Model<MessagesDocument>,
+    private readonly websocketsGateway: WebsocketsGateway,
   ) { }
 
   async create(createChatDto: CreateChatDto, credentials: Credential[]): Promise<ChatsDocument> {
@@ -52,6 +61,9 @@ export class ChatsService {
     }
 
     const created = await this.ChatsModule.create(createChatDto)
+
+    this.websocketsGateway.sendNotification('notification-new-chat', created);
+
     return created;
   }
 
@@ -239,13 +251,19 @@ export class ChatsService {
       throw new BadRequestException('Invalid chat id');
     }
 
-    return this.ChatsModule.updateOne({ _id: id }, updateChatDto);
+    await this.ChatsModule.updateOne({ _id: id }, updateChatDto)
+    const chat = await this.ChatsModule.findById(id);
+    this.websocketsGateway.sendNotification('notification-update-chat', chat);
+
+    return chat;
   }
 
   async readAllMessages(id: string, updateChatDto: UpdateChatDto) {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid chat id');
     }
+
+    this.websocketsGateway.sendNotification('notification-read-all-messages', { chatId: id });
 
     return this.MessagesModule.updateMany({ chatId: new ObjectId(id) }, updateChatDto);
   }

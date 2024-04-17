@@ -6,8 +6,4 @@ export class UpdateMessageDto extends PartialType(CreateMessageDto) {
     @ApiProperty()
     @IsOptional()
     highlight: Boolean;
-
-    @ApiProperty()
-    @IsOptional()
-    important: Boolean;
 }
