@@ -2,11 +2,14 @@ import { Attachments } from './attachment.entity'
 import { User } from './user.entity'
 import { ParticipantRc } from '@/ringcentral/messages/entities/participantRc.entity'
 import {  MessageType, MessageReadStatus, MessageDirection, MessageStatus, MessageResources } from '../schema/messages.schema'
+import { ObjectId } from 'mongoose';
+import { Types } from 'mongoose'
+
 
 export class Message {
     id: Number;
     conversationId: Number;
-    chatId: string;
+    chatId: Types.ObjectId;
     to?: ParticipantRc[];
     from: ParticipantRc;
     type: MessageType;

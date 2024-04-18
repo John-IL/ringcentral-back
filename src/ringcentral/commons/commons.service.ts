@@ -3,7 +3,7 @@ import { SDK } from '@ringcentral/sdk';
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto'
 import { Message } from '@/ringcentral/messages/entities/message.entity';
 import Platform from '@ringcentral/sdk/lib/platform/Platform';
-
+import * as FormDataRc from 'form-data';
 @Injectable()
 export class CommonsService {
 
@@ -32,14 +32,14 @@ export class CommonsService {
                 const apiResponse = await platform.get(endPoint, body);
                 const rcRecords = await apiResponse.json();
                 const headers = apiResponse.headers;
-                
+
                 allRecords.push(...rcRecords.records);
                 ++page;
 
                 if (!rcRecords.paging?.pageEnd) {
                     break;
                 }
-                
+
 
                 if (headers.get('x-rate-limit-remaining') == '1') {
                     await new Promise(resolve => setTimeout(resolve, 60));
@@ -80,6 +80,51 @@ export class CommonsService {
 
             await platform.login({ jwt: message.tokenRc });
             const response = await platform.post(`/restapi/v1.0/account/~/extension/~/sms`, body);
+
+            return response.json();
+
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+    async processMessageFile(message: CreateMessageDto) {
+        const rcsdk = new SDK({
+            server: SDK.server.production,
+            clientId: process.env.RINGCENTRAL_CLIENT_ID,
+            clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
+        });
+
+        // import * as FormDataRc from 'form-data';
+        let formData = new FormDataRc();
+
+        var bodyParams = {
+            from: { phoneNumber: message.fromNumber },
+            to: [{
+                // phoneNumber: "1" + parsedPhoneNumber
+                phoneNumber: "16263467630"
+            }],
+            text: message.subject,
+        }
+
+        formData.append('json', Buffer.from(JSON.stringify(bodyParams)), {
+            contentType: 'application/json'
+        });
+
+        for (const file of message.attachment) {
+            const base64Data = file.base64.split(',')[1];
+
+            formData.append('attachment', Buffer.from(base64Data, 'base64'), {
+                filename: file.name,
+                contentType: file.fileType
+            });
+        }
+
+        try {
+            const platform = rcsdk.platform();
+            await platform.login({ jwt: message.tokenRc });
+            const response = await platform.post(`/restapi/v1.0/account/~/extension/~/sms`, formData);
 
             return response.json();
 

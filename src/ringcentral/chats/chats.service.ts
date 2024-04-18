@@ -1,4 +1,6 @@
 import * as AWS from 'aws-sdk';
+import axios from "axios";
+
 import { Model, Types } from 'mongoose'
 
 
@@ -58,6 +60,48 @@ export class ChatsService {
 
     if (secondModule) {
       createChatDto.secondParticipant.name = secondModule.rc_name;
+    }
+
+    if (createChatDto.type == TypeChat.LEAD) {
+      const api = process.env.NEW_BACK_URL + '/ring-central/lead/index';
+      const payload: object = {
+        leadNumber: createChatDto.firstParticipant.phoneNumber,
+        moduleNumber: createChatDto.secondParticipant.phoneNumber,
+      }
+      const { data } = await axios.post(api, payload);
+
+      let clientAccount = data.find(item => item.number_format !== null && item.client_account_id !== null);
+
+      if(!clientAccount){
+        clientAccount = data.find(item => item.mobile !== null);
+      }
+
+      if (clientAccount) {
+        const clientData = {
+          clientAccountId: clientAccount.client_account_id,
+          clientIdCreationDate: clientAccount.client_account_created,
+          leadId: clientAccount.lead_id,
+          name: clientAccount.full_name,
+          dob: clientAccount.dob,
+          ssn: clientAccount.ssn,
+          email: clientAccount.email,
+          language: clientAccount.language,
+          leadCreationDate: clientAccount.created_at
+        };
+
+        if (firstModule) {
+          createChatDto.secondParticipant = {
+            ...createChatDto.secondParticipant,
+            ...clientData
+          };
+        } else {
+          createChatDto.firstParticipant = {
+            ...createChatDto.firstParticipant,
+            ...clientData
+          };
+        }
+
+      }
     }
 
     const created = await this.ChatsModule.create(createChatDto)

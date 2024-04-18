@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, ValidateNested, IsIn } from 'class-validator'
+import { IsNotEmpty, IsString, IsOptional, ValidateNested, IsIn, isNumber, IsNumber } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
@@ -50,5 +50,10 @@ export class CreateMessageDto {
     @IsNotEmpty()
     @IsString()
     toNumber: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsNumber()
+    withImage: Number;
 
 }

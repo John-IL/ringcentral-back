@@ -15,7 +15,14 @@ export class Participant {
     searchPhoneNumber: string;
     
     name?: string;
+
     location?: string;
     leadId?: Number;
     clientAccountId?: string;
+    ssn?: string;
+    dob?: string;
+    email?: string;
+    language?: string;
+    leadCreationDate?: Date;
+    clientIdCreationDate?: Date;
 }

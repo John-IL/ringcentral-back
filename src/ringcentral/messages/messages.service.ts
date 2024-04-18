@@ -2,6 +2,7 @@ import axios from "axios";
 import * as AWS from 'aws-sdk';
 import { SDK } from '@ringcentral/sdk';
 import { PassThrough } from 'stream';
+import { Readable } from 'stream';
 
 import { Model, Types } from 'mongoose'
 import { ObjectId } from 'mongodb';
@@ -37,9 +38,17 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
 
-    return 1;
+    const { tokenRc, chatId } = createMessageDto;
 
-    const { chatId } = createMessageDto;
+    const rcsdk = new SDK({
+      server: SDK.server.production,
+      clientId: process.env.RINGCENTRAL_CLIENT_ID,
+      clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
+    });
+
+    const platform = rcsdk.platform();
+    await platform.login({ jwt: tokenRc });
+
 
     const existingChat = await this.chatsService.findOne(chatId);
     if (!existingChat) {
@@ -48,17 +57,82 @@ export class MessagesService {
 
     try {
 
-      const response = await this.commonsService.processMessage(createMessageDto);
-      let message: Message = {
-        ...response
-      };
+      let message: Message
 
-      message.chatId = createMessageDto.chatId;
+      const s3 = new AWS.S3();
+
+      if (createMessageDto.withImage == 2) {
+        const responseApi = await this.commonsService.processMessageFile(createMessageDto);
+
+        message = {
+          ...responseApi
+        };
+
+
+        if (message.attachments ?? message.attachments.length > 0) {
+          const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
+          if (index !== -1) {
+            message.attachments.splice(index, 1);
+          }
+
+          for (let file of message.attachments) {
+
+            const response: any = await platform.get(file.uri);
+            const contentBody: PassThrough = response.body;
+
+            if (contentBody) {
+              const fileName = "messages_files/" + file.id;
+
+              const params: AWS.S3.PutObjectRequest = {
+                Bucket: process.env.AWS_BUCKET,
+                Key: fileName,
+                Body: contentBody
+              };
+
+              await s3.upload(params).promise();
+              file.recordUrl = fileName;
+
+            }
+          };
+        };
+
+      } else {
+        const responseApi = await this.commonsService.processMessage(createMessageDto);
+
+        message = {
+          ...responseApi
+        };
+
+        const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
+        if (index !== -1) {
+          message.attachments.splice(index, 1);
+        }
+
+      }
+
+      message.chatId = new ObjectId(createMessageDto.chatId);
       message.createdBy = createMessageDto.createdBy;
       message.resource = MessageResources.CHAT;
 
-      await this.MessagesModule.create(message)
-      return response;
+      let messageCreated: MessagesDocument = await this.MessagesModule.create(message)
+
+
+      if (messageCreated.attachments && messageCreated.attachments.length > 0) {
+        for (let file of messageCreated.attachments) {
+          const params = {
+            Bucket: process.env.AWS_BUCKET,
+            Key: file.recordUrl,
+            Expires: 3600,
+          };
+
+          const signedUrl = await s3.getSignedUrlPromise('getObject', params);
+          file.recordUrl = signedUrl;
+        };
+      }
+
+      this.websocketsGateway.sendNotification('notification-message-created', messageCreated);
+
+      return messageCreated;
 
     } catch (error) {
       throw new BadRequestException(error.message);

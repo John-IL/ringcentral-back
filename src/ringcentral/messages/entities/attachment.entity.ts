@@ -26,5 +26,7 @@ export class Attachments {
     filename?: string;
     duration?: Number;
     fileType?: AttachmentsType;
-    createrAt?: Date;
+    createdAt?: Date;
+    base64?: string;
+    name?: string;
 }
