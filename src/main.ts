@@ -1,14 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import * as dotenv from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as AWS from 'aws-sdk';
 import * as cors from 'cors';
 
-
 async function bootstrap() {
-  dotenv.config();
+  
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe)
 
@@ -31,7 +29,6 @@ async function bootstrap() {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_DEFAULT_REGION,
   });
-
 
   await app.listen(3000);
 }
