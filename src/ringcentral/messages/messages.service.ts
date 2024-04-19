@@ -217,8 +217,8 @@ export class MessagesService {
     return list;
   }
 
-  async findOne(params: FindMessagesDto): Promise<Message | null> {
-    const { chatId, column, value } = params;
+  async findOne(params: FindMessagesDto): Promise<Message[] | null> {
+    const { chatId, column, value, limit } = params;
 
     try {
       const message = await this.MessagesModule.aggregate([
@@ -229,11 +229,11 @@ export class MessagesService {
           }
         },
         {
-          $limit: 1
+          $limit: limit
         }
       ]);
 
-      return message.length ? message[0] : null;
+      return message;
     } catch (error) {
       throw error;
     }

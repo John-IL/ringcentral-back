@@ -15,4 +15,8 @@ export class FindMessagesDto {
     @ApiProperty()
     @IsNotEmpty()
     value: any;
+
+    @ApiProperty()
+    @IsOptional()
+    limit: number;
 }
