@@ -14,9 +14,9 @@ export class FindClientChatDto {
     @ApiProperty()
     @IsNotEmpty()
     @IsString()
-    @Matches(/^\(\d{3}\)\s\d{3}-\d{4}$/, {
-        message: 'clientPhoneNumber must be in the format (###) ###-####'
-    })
+    // @Matches(/^\(\d{3}\)\s\d{3}-\d{4}$/, {
+    //     message: 'clientPhoneNumber must be in the format (###) ###-####'
+    // })
     clientPhoneNumber: string;
 
   

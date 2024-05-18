@@ -14,13 +14,9 @@ export class WebsocketsGateway implements OnModuleInit {
 
   onModuleInit() {
     this.server.on('connection', (socket: Socket) => {
-      console.log('Client connected');
-
 
       socket.on('disconnect', () => {
-        console.log('Client disconnected');
       });
-
 
     });
   }

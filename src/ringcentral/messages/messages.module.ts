@@ -7,18 +7,21 @@ import { Messages, MessagesSchema } from '@/ringcentral/messages/schema/messages
 import { CommonsModule } from '@/ringcentral/commons/commons.module'
 import { ChatsModule } from '@/ringcentral/chats/chats.module';
 import { WebsocketsModule } from '@/websockets/websockets.module';
-
+import { Chats, ChatsSchema } from '@/ringcentral/chats/schema/chats.schema';
+import { CommonsModule as CommonsModuleGeneral } from '@/commons/commons.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
       {
         name: Messages.name,
         schema: MessagesSchema
-      }
+      },
+      { name: Chats.name, schema: ChatsSchema },
     ]),
     CommonsModule,
     ChatsModule,
-    WebsocketsModule
+    WebsocketsModule,
+    CommonsModuleGeneral
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

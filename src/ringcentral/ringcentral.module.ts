@@ -6,12 +6,19 @@ import { ChatsModule } from '@/ringcentral/chats/chats.module';
 import { CommonsModule } from '@/ringcentral/commons/commons.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
     imports: [
         MessagesModule,
         ChatsModule,
         CommonsModule,
+
+        JwtModule.register({
+            global: true,
+            secret: process.env.JWT_SECRET,
+            signOptions: { expiresIn: '24h' },
+          }),
 
         ThrottlerModule.forRoot([{
             ttl: 60000,

@@ -2,13 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { SDK } from '@ringcentral/sdk';
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto'
 import { Message } from '@/ringcentral/messages/entities/message.entity';
-import Platform from '@ringcentral/sdk/lib/platform/Platform';
 import * as FormDataRc from 'form-data';
 @Injectable()
 export class CommonsService {
 
-    async getAllMessages(platform: Platform, dateT: Date): Promise<Message[]> {
+    async getAllMessages(tokenRc: string, dateT: Date): Promise<Message[]> {
         try {
+
+            const rcsdk = new SDK({
+                server: SDK.server.production,
+                clientId: process.env.RINGCENTRAL_CLIENT_ID,
+                clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
+              });
+              const platform = rcsdk.platform();
+              await platform.login({ jwt: tokenRc });
 
             const dateF: string = new Date(new Date(dateT).getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
             const dateFrom: string = dateF + 'T07:00:00Z';
@@ -40,7 +47,6 @@ export class CommonsService {
                     break;
                 }
 
-
                 if (headers.get('x-rate-limit-remaining') == '1') {
                     await new Promise(resolve => setTimeout(resolve, 60));
                 }
@@ -68,8 +74,8 @@ export class CommonsService {
             },
             to: [
                 {
-                    // phoneNumber: "1" + parsedPhoneNumber
-                    phoneNumber: "16263467630"
+                    phoneNumber: "1" + parsedPhoneNumber
+                    // phoneNumber: "16263467630"
                 },
             ],
             text: message.subject,
@@ -98,12 +104,13 @@ export class CommonsService {
 
         // import * as FormDataRc from 'form-data';
         let formData = new FormDataRc();
+        let parsedPhoneNumber = message.toNumber.replace(/\D/g, '');
 
         var bodyParams = {
             from: { phoneNumber: message.fromNumber },
             to: [{
-                // phoneNumber: "1" + parsedPhoneNumber
-                phoneNumber: "16263467630"
+                phoneNumber: "1" + parsedPhoneNumber
+                // phoneNumber: "16263467630"
             }],
             text: message.subject,
         }

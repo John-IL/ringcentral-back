@@ -2,7 +2,7 @@ import axios from "axios";
 import * as AWS from 'aws-sdk';
 import { SDK } from '@ringcentral/sdk';
 import { PassThrough } from 'stream';
-import { Readable } from 'stream';
+import { Request } from 'express';
 
 import { Model, Types } from 'mongoose'
 import { ObjectId } from 'mongodb';
@@ -11,32 +11,38 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 
 import { CreateMessageDto } from '@/ringcentral/messages/dto/create-message.dto';
 import { UpdateMessageDto } from '@/ringcentral/messages/dto/update-message.dto';
-import { Messages, MessagesDocument, MessageResources } from '@/ringcentral/messages/schema/messages.schema';
+import { Messages, MessagesDocument, MessageResources, MessageType, MessageReadStatus, MessageDirection } from '@/ringcentral/messages/schema/messages.schema';
 import { CommonsService } from '@/ringcentral/commons/commons.service'
 import { ChatsService } from '@/ringcentral/chats/chats.service';
 import { SearchMessagesDto } from '@/ringcentral/messages/dto/search-messages.dto.';
 import { Message } from '@/ringcentral/messages/entities/message.entity';
 import { FindMessagesDto } from '@/ringcentral/messages/dto/find-messages.dto';
 import { MigrateMessagesDto } from '@/ringcentral/messages/dto/migrate-messages.dto';
-import { ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
+import { Chats, ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
 import { CreateChatDto } from '@/ringcentral/chats/dto/create-chat.dto';
-import { TypeChat } from "@/ringcentral/chats/schema/chats.schema";
-import { Participant } from '@/ringcentral/messages/entities/participant.entity';
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
 import { WebsocketsGateway } from "@/websockets/websockets.gateway";
 import { ImportantMessageDto } from "./dto/important-message.dto";
+import { SearchTopicMessagesDto } from '@/ringcentral/messages/dto/search-topic-message.dto';
+
+import { CommonsService as CommonsServiceGeneral } from '@/commons/commons.service';
 
 @Injectable()
 export class MessagesService {
 
   constructor(
     @InjectModel(Messages.name) private MessagesModule: Model<MessagesDocument>,
+    @InjectModel(Chats.name) private ChatsModule: Model<ChatsDocument>,
     private readonly commonsService: CommonsService,
     private readonly chatsService: ChatsService,
+    private readonly CommonsServiceGeneral: CommonsServiceGeneral,
+
     private readonly websocketsGateway: WebsocketsGateway,
   ) { }
 
   async create(createMessageDto: CreateMessageDto) {
+
+    // return 1;
 
     const { tokenRc, chatId } = createMessageDto;
 
@@ -58,7 +64,6 @@ export class MessagesService {
     try {
 
       let message: Message
-
       const s3 = new AWS.S3();
 
       if (createMessageDto.withImage == 2) {
@@ -67,7 +72,6 @@ export class MessagesService {
         message = {
           ...responseApi
         };
-
 
         if (message.attachments ?? message.attachments.length > 0) {
           const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
@@ -91,7 +95,6 @@ export class MessagesService {
 
               await s3.upload(params).promise();
               file.recordUrl = fileName;
-
             }
           };
         };
@@ -107,7 +110,6 @@ export class MessagesService {
         if (index !== -1) {
           message.attachments.splice(index, 1);
         }
-
       }
 
       message.chatId = new ObjectId(createMessageDto.chatId);
@@ -116,6 +118,9 @@ export class MessagesService {
 
       let messageCreated: MessagesDocument = await this.MessagesModule.create(message)
 
+      await this.ChatsModule.updateOne({ _id: messageCreated.chatId }, {
+        lastMessage: messageCreated
+      });
 
       if (messageCreated.attachments && messageCreated.attachments.length > 0) {
         for (let file of messageCreated.attachments) {
@@ -135,11 +140,37 @@ export class MessagesService {
       return messageCreated;
 
     } catch (error) {
-      throw new BadRequestException(error.message);
+      const chatId = new ObjectId(createMessageDto.chatId);
+
+      const currentDate = new Date();
+
+      let message: Message = {
+        chatId: chatId,
+        createdBy: createMessageDto.createdBy,
+        resource: MessageResources.CHAT,
+        direction: createMessageDto.direction,
+        subject: createMessageDto.subject,
+        to: [
+          {
+            phoneNumber: createMessageDto.toNumber
+          }
+        ],
+        from: {
+          phoneNumber: createMessageDto.fromNumber
+        },
+        type: MessageType.SMS,
+        readStatus: MessageReadStatus.UNREAD,
+        creationTime: currentDate,
+        error: error.message
+      }
+
+      const messageError = await this.MessagesModule.create(message)
+
+      this.websocketsGateway.sendNotification('notification-message-created', messageError);
+      return messageError;
     }
 
   }
-
 
   async findAll(params: SearchMessagesDto) {
     const pageSize = 50;
@@ -162,7 +193,6 @@ export class MessagesService {
           file.recordUrl = signedUrl;
         };
       }
-
     };
 
 
@@ -242,109 +272,46 @@ export class MessagesService {
   async migrate(params: MigrateMessagesDto) {
     const { rcToken, date } = params;
 
-    const rcsdk = new SDK({
-      server: SDK.server.production,
-      clientId: process.env.RINGCENTRAL_CLIENT_ID,
-      clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
-    });
-    const platform = rcsdk.platform();
-    await platform.login({ jwt: rcToken });
-
-    const api = process.env.NEW_BACK_URL + '/ring-central/credentials/all';
-    const responseCredentials = await axios.get(api);
-    const credentials: Credential[] = responseCredentials.data;
-
     try {
 
-      let messages: Message[] = await this.commonsService.getAllMessages(platform, date);
+      let messages: Message[] = await this.commonsService.getAllMessages(rcToken, date);
+
+      // messages.sort((a, b) => {
+      //   const dateA = new Date(a.creationTime).toISOString();
+      //   const dateB = new Date(b.creationTime).toISOString();
+      //   return dateA.localeCompare(dateB);
+      // })
+
+      messages.reverse();
+
+      const api = process.env.NEW_BACK_URL + '/ring-central/get-ring-central-credentials';
+      const { data } = await axios.post(api);
+      const credentials: Credential[] = data.data;
+
       for (let message of messages) {
-
-        const list = await this.MessagesModule.findOne({ id: message.id }).exec();
-
-        if (list) continue;
-
-        let firstNumber: string;
-        let secondNumber: string;
-        let secondNumberFormat: string;
-        let secondNumberName: string;
-
-        firstNumber = this.commonsService.formatPhoneNumber(message.from.phoneNumber);
-        if (message.type == "Fax" && !message.to) {
-          secondNumber = this.commonsService.formatPhoneNumber(message.subject);
-          secondNumberFormat = message.subject;
-          secondNumberName = "";
-        } else {
-          secondNumber = this.commonsService.formatPhoneNumber(message.to[0].phoneNumber);
-          secondNumberFormat = message.to[0].phoneNumber;
-          secondNumberName = message.to[0].name;
-        }
-
-        let existChat: ChatsDocument = await this.chatsService.findChatPhoneNumbers(firstNumber, secondNumber);
-
-        if (!existChat) {
-          const firstParticipant: Participant = {
-            phoneNumber: firstNumber,
-            searchPhoneNumber: message.from.phoneNumber.slice(2),
-            name: message.from.name
-          };
-          const secondParticipant: Participant = {
-            phoneNumber: secondNumber,
-            searchPhoneNumber: secondNumberFormat.slice(2),
-            name: secondNumberName
-          };
-
-          const newChat: CreateChatDto = {
-            firstParticipant,
-            secondParticipant,
-            type: TypeChat.LEAD
-          };
-
-          try {
-            existChat = await this.chatsService.create(newChat, credentials);
-          } catch (e) {
-            console.log(e);
-            return;
-          }
-
-        }
-
-
-        message.resource = MessageResources.MIGRATION;
-        message.chatId = existChat._id;
-
-        if (message.attachments ?? message.attachments.length > 0) {
-          const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
-          if (index !== -1) {
-            message.attachments.splice(index, 1);
-          }
-
-          const s3 = new AWS.S3();
-          for (let file of message.attachments) {
-
-            const response: any = await platform.get(file.uri);
-            const contentBody: PassThrough = response.body;
-
-            if (contentBody) {
-              const fileName = "messages_files/" + file.id;
-
-              const params: AWS.S3.PutObjectRequest = {
-                Bucket: process.env.AWS_BUCKET,
-                Key: fileName,
-                Body: contentBody
-              };
-
-              await s3.upload(params).promise();
-              file.recordUrl = fileName;
-
-            }
-          };
-        };
-
-        this.MessagesModule.create(message)
-
+        await this.processInformation(message, credentials);
       };
 
       return messages;
+
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async webhook(request: Request) {
+
+    try {
+
+      const api = process.env.NEW_BACK_URL + '/ring-central/get-ring-central-credentials';
+      const { data } = await axios.post(api);
+      const credentials: Credential[] = data.data;
+
+      const message: Message = request.body.body;
+
+      if (message.direction == MessageDirection.INBOUND && message.to[0].phoneNumber == '+16263467630') return;
+
+      await this.processInformation(message, credentials);
 
     } catch (error) {
       console.log(error);
@@ -388,13 +355,6 @@ export class MessagesService {
     return message;
   }
 
-
-
-  remove(id: number) {
-    return `This action removes a #${id} message`;
-  }
-
-
   addNewDate(item: any): string {
     const currentDate = new Date();
     const providedDate = new Date(item.creationTime);
@@ -419,5 +379,290 @@ export class MessagesService {
       dayAdd = `${month}/${day}/${providedDate.getFullYear()}`;
     }
     return dayAdd;
+  }
+
+  async processInformation(message: Message, credentials: Credential[]) {
+
+    try {
+
+      const existMessage = await this.MessagesModule.findOne({ id: message.id }).exec();
+
+      if (existMessage) return;
+
+      let firstNumber: string;
+      let secondNumber: string;
+
+      firstNumber = this.commonsService.formatPhoneNumber(message.from.phoneNumber);
+
+      if (message.type == "Fax" && !message.to) {
+        secondNumber = this.commonsService.formatPhoneNumber(message.subject);
+      } else {
+        secondNumber = this.commonsService.formatPhoneNumber(message.to[0].phoneNumber);
+      }
+
+      let existChat: ChatsDocument = await this.chatsService.findChatPhoneNumbers(firstNumber, secondNumber);
+
+      if (!existChat) {
+
+        const newChat: CreateChatDto = {
+          firstNumber: firstNumber,
+          secondNumber: secondNumber
+        };
+
+        try {
+          existChat = await this.chatsService.create(newChat, credentials);
+        } catch (e) {
+          return;
+        }
+      } else {
+
+        if (message.direction == MessageDirection.INBOUND) {
+
+          const lastMessageSent = await this.MessagesModule.findOne(
+            {
+              chatId: existChat._id, direction: MessageDirection.OUTBOUND,
+              messageTopicId: { $exists: true, $ne: null }
+            }
+          ).exec();
+
+          if (lastMessageSent) {
+            message.messageTopicId = lastMessageSent.messageTopicId;
+            message.answerMessageId = lastMessageSent._id;
+          }
+        }
+      }
+
+      // message.resource = MessageResources.MIGRATION;
+      message.chatId = existChat._id;
+
+      const s3 = new AWS.S3();
+
+      const rcsdk = new SDK({
+        server: SDK.server.production,
+        clientId: process.env.RINGCENTRAL_CLIENT_ID,
+        clientSecret: process.env.RINGCENTRAL_CLIENT_SECRET
+      });
+
+      if (message.attachments ?? message.attachments.length > 0) {
+        const index = message.attachments.findIndex(attachment => attachment.contentType == "text/plain");
+        if (index !== -1) {
+          message.attachments.splice(index, 1);
+        }
+
+        if (message.attachments.length > 0) {
+
+          const platform = rcsdk.platform();
+          await platform.login({ jwt: process.env.RINGCENTRAL_JWT });
+
+          for (let file of message.attachments) {
+
+            const response: any = await platform.get(file.uri);
+            const contentBody: PassThrough = response.body;
+
+            if (contentBody) {
+              const fileName = "messages_files/" + file.id;
+
+              const params: AWS.S3.PutObjectRequest = {
+                Bucket: process.env.AWS_BUCKET,
+                Key: fileName,
+                Body: contentBody
+              };
+
+              await s3.upload(params).promise();
+              file.recordUrl = fileName;
+
+            }
+          };
+        }
+      };
+
+      let messageCreated: MessagesDocument = await this.MessagesModule.create(message)
+
+      let counterUnread = 0
+
+      if (messageCreated.direction == "Inbound" && messageCreated.readStatus == "Unread") {
+        counterUnread = existChat.unreadCount;
+        counterUnread++;
+      }
+
+      await this.ChatsModule.updateOne({ _id: messageCreated.chatId }, {
+        lastMessage: messageCreated,
+        unreadCount: counterUnread
+      });
+
+      if (messageCreated.attachments && messageCreated.attachments.length > 0) {
+        for (let file of messageCreated.attachments) {
+          const params = {
+            Bucket: process.env.AWS_BUCKET,
+            Key: file.recordUrl,
+            Expires: 3600,
+          };
+
+          const signedUrl = await s3.getSignedUrlPromise('getObject', params);
+          file.recordUrl = signedUrl;
+        };
+      }
+
+      this.websocketsGateway.sendNotification('notification-message-created', messageCreated);
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  async getAnswersByMessageTopic(search: SearchTopicMessagesDto) {
+    const { messageId, page, perPage } = search;
+    const skip = (page - 1) * perPage;
+
+
+    const messages: any[] = await this.MessagesModule.aggregate([
+      {
+        $match: {
+          messageTopicId: messageId,
+          direction: MessageDirection.INBOUND
+        }
+      },
+
+      {
+        $lookup: {
+          from: 'chats',
+          localField: 'chatId',
+          foreignField: '_id',
+          as: 'chat'
+        }
+      },
+
+      {
+        $unwind: '$chat'
+      },
+
+      {
+        $group: {
+          _id: '$chatId',
+          chat: { $first: '$chat' },
+          messages: {
+            $push: '$$ROOT'
+          }
+        }
+      },
+
+      {
+        $sort: {
+          'chat.unreadCount': -1,
+          'chat.lastMessage.creationTime': -1,
+        }
+      }
+
+    ]).skip(skip).limit(perPage);
+
+
+    const totalChats = await this.MessagesModule.aggregate([
+      {
+        $match: {
+          messageTopicId: messageId,
+          direction: MessageDirection.INBOUND
+        }
+      },
+      {
+        $group: {
+          _id: '$chatId'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalMessages = totalChats.length > 0 ? totalChats[0].count : 0;
+
+    return this.CommonsServiceGeneral.paginate(messages, totalMessages, perPage, page);
+
+  }
+
+  async getAnswersByMessageTopicId(id: number) {
+    const messages: any[] = await this.MessagesModule.aggregate([
+      {
+        $match: {
+          messageTopicId: id,
+          direction: MessageDirection.INBOUND,
+          readStatus: "Unread"
+        }
+      },
+
+      {
+        $lookup: {
+          from: 'chats',
+          localField: 'chatId',
+          foreignField: '_id',
+          as: 'chat'
+        }
+      },
+
+      {
+        $unwind: '$chat'
+      },
+
+      {
+        $project: {
+          _id: 1,
+          subject: 1,
+          type: 1,
+          creationTime: 1,
+          messageTopicId: 1,
+
+
+          chat: 1,
+        }
+      },
+    ]);
+
+    return messages;
+  }
+
+  async getAnswersByCredentialId(id: number) {
+    const messages: any[] = await this.MessagesModule.aggregate([
+      {
+        $match: {
+          messageTopicId: null,
+          direction: MessageDirection.INBOUND,
+          readStatus: "Unread",
+        }
+      },
+
+      {
+        $lookup: {
+          from: 'chats',
+          localField: 'chatId',
+          foreignField: '_id',
+          as: 'chat'
+        }
+      },
+
+      {
+        $unwind: '$chat'
+      },
+
+      {
+        $project: {
+          _id: 1,
+          subject: 1,
+          type: 1,
+          creationTime: 1,
+          messageTopicId: 1,
+
+
+          chat: 1,
+        }
+      },
+      {
+        $match: {
+          "chat.credentialId": id
+        }
+      }
+    ]);
+
+    return messages;
   }
 }

@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { json } from 'body-parser';
+
 import * as AWS from 'aws-sdk';
 import * as cors from 'cors';
 
@@ -19,8 +21,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('documentation', app, document);
 
+  
   app.setGlobalPrefix('api');
-
+  
   // app.enableCors();
   app.use(cors());
 
@@ -29,8 +32,10 @@ async function bootstrap() {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_DEFAULT_REGION,
   });
+  
+  app.use(json({ limit: '500mb' }));
 
-  await app.listen(3000);
+  await app.listen(4000);
 }
 
 bootstrap();

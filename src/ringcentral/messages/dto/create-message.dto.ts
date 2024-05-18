@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, ValidateNested, IsIn, isNumber, IsNumber } from 'class-validator'
+import { IsNotEmpty, IsString, IsOptional, ValidateNested, IsIn, IsNumber, Length } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
@@ -15,6 +15,7 @@ export class CreateMessageDto {
 
     @ApiProperty()
     @IsString()
+    @Length(0, 500, { message: 'The text must have a maximum of 500 characters' })
     subject: string;
 
     @ApiProperty()

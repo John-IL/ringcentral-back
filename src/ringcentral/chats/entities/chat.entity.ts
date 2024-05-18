@@ -1,4 +1,5 @@
 import { User } from '@/ringcentral/messages/entities/user.entity';
+import { Message } from '@/ringcentral/messages/entities/message.entity';
 
 export class Chat {
     id: string;
@@ -9,4 +10,7 @@ export class Chat {
     isBlocked?: Boolean;
     blockedBy?: User;
     readBy?: User;
+
+    lastMessage?: Message;
+    unreadCount?: number;
 }

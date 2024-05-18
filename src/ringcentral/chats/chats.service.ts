@@ -8,18 +8,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
 
-
-
 import { UpdateChatDto } from '@/ringcentral/chats/dto/update-chat.dto';
 import { Chats, ChatsDocument } from '@/ringcentral/chats/schema/chats.schema';
 import { Messages, MessagesDocument } from '@/ringcentral/messages/schema/messages.schema';
 import { Credential } from '@/ringcentral/messages/entities/credential.entity';
-import { TypeChat } from "@/ringcentral/chats/schema/chats.schema"
 import { MessagesModule } from '@/ringcentral/messages/messages.module';
 import { Attachments } from '@/ringcentral/messages/entities/attachment.entity';
 import { CreateChatDto } from '@/ringcentral/chats/dto/create-chat.dto';
 import { WebsocketsGateway } from "@/websockets/websockets.gateway";
-import { FindClientChatDto } from './dto/find-client-chat.dto';
+import { SearchChatDto } from './dto/search-chat.dto';
 
 @Injectable()
 export class ChatsService {
@@ -31,77 +28,60 @@ export class ChatsService {
   ) { }
 
   async create(createChatDto: CreateChatDto, credentials: Credential[]): Promise<ChatsDocument> {
-    const { firstParticipant, secondParticipant } = createChatDto;
-    const firstNumber = firstParticipant.phoneNumber;
-    const secondNumber = secondParticipant.phoneNumber;
+
+    const { firstNumber, secondNumber } = createChatDto;
 
     const existingChat = await this.findChatPhoneNumbers(firstNumber, secondNumber);
 
     if (existingChat) {
-      throw new ConflictException('This chat has already been created');
-    }
-
-    createChatDto.type = TypeChat.LEAD;
-
-    const firstModule = credentials.find(module => module.number_format == firstNumber);
-    const secondModule = credentials.find(module => module.number_format == secondNumber);
-
-    if (firstModule && secondModule) {
-      createChatDto.type = TypeChat.INTERNAL;
-
-      if (firstModule.number_format == secondModule.number_format) {
-        createChatDto.type = TypeChat.YOU;
+      if (existingChat.blockedBy) {
+        throw new ConflictException('This chat was blocked by ' + existingChat.blockedBy.name);
       }
+
+      return existingChat;
+
     }
+
+    const firstModule = credentials.find(module => module.number == firstNumber);
+    const secondModule = credentials.find(module => module.number == secondNumber);
+
+    if ((firstModule && secondModule) || (!firstModule && !secondModule)) {
+      throw new ConflictException('This chat is internal');
+    }
+
+    let leadPhoneNumber = null;
 
     if (firstModule) {
-      createChatDto.firstParticipant.name = firstModule.rc_name;
+      createChatDto.credentialId = firstModule.id;
+      createChatDto.credentialPhoneNumber = firstModule.number;
+
+      createChatDto.leadPhoneNumber = secondNumber;
+      leadPhoneNumber = secondNumber;
+      createChatDto.searchPhoneNumber = secondNumber.replace(/\D/g, '');
     }
 
     if (secondModule) {
-      createChatDto.secondParticipant.name = secondModule.rc_name;
+      createChatDto.credentialId = secondModule.id;
+      createChatDto.credentialPhoneNumber = secondModule.number;
+
+      createChatDto.leadPhoneNumber = firstNumber;
+      leadPhoneNumber = firstNumber;
+      createChatDto.searchPhoneNumber = firstNumber.replace(/\D/g, '');
     }
 
-    if (createChatDto.type == TypeChat.LEAD) {
+    try {
       const api = process.env.NEW_BACK_URL + '/ring-central/lead/index';
-      const payload: object = {
-        leadNumber: createChatDto.firstParticipant.phoneNumber,
-        moduleNumber: createChatDto.secondParticipant.phoneNumber,
+      const payload = {
+        leadNumber: leadPhoneNumber
       }
       const { data } = await axios.post(api, payload);
 
-      let clientAccount = data.find(item => item.number_format !== null && item.client_account_id !== null);
-
-      if(!clientAccount){
-        clientAccount = data.find(item => item.mobile !== null);
+      if (data && data.length == 1) {
+        const leadInfo = data[0];
+        createChatDto.leadId = leadInfo.id;
+        createChatDto.leadName = this.getLeadName(leadInfo);
       }
-
-      if (clientAccount) {
-        const clientData = {
-          clientAccountId: clientAccount.client_account_id,
-          clientIdCreationDate: clientAccount.client_account_created,
-          leadId: clientAccount.lead_id,
-          name: clientAccount.full_name,
-          dob: clientAccount.dob,
-          ssn: clientAccount.ssn,
-          email: clientAccount.email,
-          language: clientAccount.language,
-          leadCreationDate: clientAccount.created_at
-        };
-
-        if (firstModule) {
-          createChatDto.secondParticipant = {
-            ...createChatDto.secondParticipant,
-            ...clientData
-          };
-        } else {
-          createChatDto.firstParticipant = {
-            ...createChatDto.firstParticipant,
-            ...clientData
-          };
-        }
-
-      }
+    } catch (error) {
     }
 
     const created = await this.ChatsModule.create(createChatDto)
@@ -111,116 +91,92 @@ export class ChatsService {
     return created;
   }
 
-  async findAll(phoneNumber: string, page: number, searchText: string) {
-    const pageSize = 50;
+  async findAll(searchChatDto: SearchChatDto) {
+    let { credentialId, page, text, filterAll } = searchChatDto;
+    const pageSize = 15;
     const skip = (page - 1) * pageSize;
 
     let matchQuery: any = {
-      "$or": [
-        {
-          "$and":
-            [
-              { "firstParticipant.phoneNumber": phoneNumber },
-              { "isBlocked": false }
-            ]
-        },
-        {
-          "$and":
-            [
-              { "secondParticipant.phoneNumber": phoneNumber },
-              { "isBlocked": false }
-            ]
-        },
+      "$and": [
+        { "credentialId": credentialId },
+        { "isBlocked": false }
       ]
     };
 
-    if (searchText && searchText.trim() !== "") {
-      const newSearchText = searchText.replace(/[^\w\s]/g, '');
+    let chatWithMessages = [];
 
-      matchQuery["$or"][0]["$and"].push({
+    if (text && text.trim() !== "") {
+      const newSearchText = text.replace(/[^\w\s]/g, '');
+
+      matchQuery["$and"].push({
         '$or': [
-          { 'secondParticipant.name': { $regex: newSearchText, $options: 'i' } },
-          { "secondParticipant.searchPhoneNumber": { $regex: newSearchText, $options: 'i' } },
+          { 'leadName': { $regex: newSearchText, $options: 'i' } },
+          { "searchPhoneNumber": { $regex: newSearchText, $options: 'i' } },
         ]
       });
 
-      matchQuery["$or"][1]["$and"].push({
-        '$or': [
-          { 'firstParticipant.name': { $regex: newSearchText, $options: 'i' } },
-          { "firstParticipant.searchPhoneNumber": { $regex: newSearchText, $options: 'i' } },
+      let matchQueryMessage: any = {
+        "$and": [
+          { "chat.credentialId": credentialId },
+          { "chat.isBlocked": false },
+          { "subject": { $regex: text, $options: 'i' } },
         ]
+      };
+
+      chatWithMessages = await this.MessagesModule.aggregate([
+        {
+          $lookup: {
+            from: 'chats',
+            localField: 'chatId',
+            foreignField: '_id',
+            as: 'chat',
+          },
+        },
+        {
+          $unwind: '$chat',
+        },
+
+        {
+          $match: matchQueryMessage
+        },
+
+        {
+          $skip: skip
+        },
+        {
+          $limit: pageSize
+        }
+      ]);
+
+    }
+
+    if (filterAll == 'unread') {
+      matchQuery["$and"].push({
+        "unreadCount": { $gt: 0 }
       });
     }
 
-    const chatsWithLastMessageAndUnreadCount = await this.ChatsModule.aggregate([
+    const chatsWithLastMessage = await this.ChatsModule.aggregate([
+
       {
         $match: matchQuery
       },
       {
-        $lookup: {
-          from: 'messages',
-          let: { chatId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$chatId', '$$chatId'] },
-                direction: 'Inbound',
-                readStatus: 'Unread'
-              },
-            },
-            {
-              $count: 'unreadCount'
-            }
-          ],
-          as: 'unreadMessages'
-        }
-      },
-      {
-        $addFields: {
-          unreadCount: {
-            $cond: {
-              if: { $isArray: '$unreadMessages' },
-              then: { $arrayElemAt: ['$unreadMessages.unreadCount', 0] },
-              else: 0
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'messages',
-          let: { chatId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$chatId', '$$chatId'] },
-              },
-            },
-            {
-              $sort: { creationTime: -1 }
-            },
-            {
-              $limit: 1
-            }
-          ],
-          as: 'lastMessage'
+        $project: {
+          _id: 1,
+          leadPhoneNumber: 1,
+          leadName: 1,
+          createdAt: 1,
+          createdBy: 1,
+          leadId: 1,
+          clientAccountId: 1,
+
+          lastMessage: 1,
+          unreadCount: 1
         }
       },
       {
         $sort: { 'lastMessage.creationTime': -1, 'createdAt': -1 }
-      },
-      {
-        $project: {
-          _id: 1,
-          firstParticipant: 1,
-          secondParticipant: 1,
-          type: 1,
-          createdAt: 1,
-          createdBy: 1,
-
-          lastMessage: { $arrayElemAt: ['$lastMessage', 0] },
-          unreadCount: 1
-        }
       },
       {
         $skip: skip
@@ -230,7 +186,10 @@ export class ChatsService {
       }
     ]);
 
-    return chatsWithLastMessageAndUnreadCount;
+    return {
+      chats: chatsWithLastMessage,
+      messages: chatWithMessages
+    };
   }
 
   async findOne(id: string): Promise<ChatsDocument> {
@@ -245,17 +204,17 @@ export class ChatsService {
     return chat;
   }
 
-  async findChatPhoneNumbers(firstPhoneNumber: string, secondPhoneNumber: string): Promise<ChatsDocument | null> {
+  async findChatPhoneNumbers(firstNumber: string, secondNumber: string): Promise<ChatsDocument | null> {
 
     const chat = await this.ChatsModule.findOne({
       $or: [
         {
-          'firstParticipant.phoneNumber': firstPhoneNumber,
-          'secondParticipant.phoneNumber': secondPhoneNumber
+          credentialPhoneNumber: firstNumber,
+          leadPhoneNumber: secondNumber
         },
         {
-          'firstParticipant.phoneNumber': secondPhoneNumber,
-          'secondParticipant.phoneNumber': firstPhoneNumber
+          leadPhoneNumber: firstNumber,
+          credentialPhoneNumber: secondNumber
         }
       ]
     }).exec();
@@ -307,36 +266,41 @@ export class ChatsService {
       throw new BadRequestException('Invalid chat id');
     }
 
-    this.websocketsGateway.sendNotification('notification-read-all-messages', { chatId: id });
+    const nextUpdatedDocuments = await this.MessagesModule.find({ chatId: new ObjectId(id), readStatus: "Unread" }).select('_id');
 
-    return this.MessagesModule.updateMany({ chatId: new ObjectId(id) }, updateChatDto);
+    if (nextUpdatedDocuments.length > 0) {
+
+      await this.ChatsModule.updateOne({ _id: id }, {
+        unreadCount: 0
+      });
+
+      const updatedDocumentIds = nextUpdatedDocuments.map(doc => doc._id);
+
+      await this.MessagesModule.updateMany({ chatId: new ObjectId(id), readStatus: "Unread" }, updateChatDto);
+
+      const updatedDocuments = await this.MessagesModule.find({ _id: { $in: updatedDocumentIds } }).select('_id readBy');
+
+      this.websocketsGateway.sendNotification('notification-read-all-messages', { chatId: id });
+      this.websocketsGateway.sendNotification('notification-read-all-messages-update', { chatId: id, updatedDocuments });
+    }
   }
 
-  async getTotalUnreadMessages(phoneNumber: string): Promise<number> {
+  async getTotalUnreadMessages(credentialId2: Number): Promise<number> {
+    const newCredentialId: Number = Number(credentialId2);
     const aggregateQuery = [
       {
-        $lookup: {
-          from: 'chats',
-          localField: 'chatId',
-          foreignField: '_id',
-          as: 'chat',
-        },
+        $match: { credentialId: newCredentialId, isBlocked: false }
       },
-      { $unwind: '$chat' },
       {
-        $match: {
-          $or: [
-            { 'chat.firstParticipant.phoneNumber': phoneNumber },
-            { 'chat.secondParticipant.phoneNumber': phoneNumber },
-          ],
-          'readStatus': 'Unread',
-          'direction': 'Inbound'
-        },
-      },
-      { $count: 'totalUnreadMessages' },
+        $group: {
+          _id: "$credentialId",
+          totalUnreadMessages: { $sum: "$unreadCount" }
+        }
+      }
     ];
 
-    const result = await this.MessagesModule.aggregate(aggregateQuery).exec();
+    const result = await this.ChatsModule.aggregate(aggregateQuery).exec();
+
     if (result.length > 0) {
       return result[0].totalUnreadMessages;
     } else {
@@ -344,7 +308,69 @@ export class ChatsService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} chat`;
+  async getAllMessagesUnread(): Promise<number> {
+    const totalUnreadCount = await this.ChatsModule.aggregate([
+      {
+        $match: {
+          credentialId: { $in: [20, 41] }, isBlocked: false
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalUnreadCount: { $sum: '$unreadCount' }
+        }
+      }
+    ]);
+
+    return totalUnreadCount.length > 0 ? totalUnreadCount[0].totalUnreadCount : 0;
+
+  }
+
+  async getAllMessagesUnreadByLeadPhone(leadPhone: string, credentialId: number): Promise<number> {
+    const chat = await this.ChatsModule.findOne({ leadPhoneNumber: leadPhone, credentialId, isBlocked: false });
+    if (chat) {
+      return chat.unreadCount ?? 0;
+    }
+    return 0;
+
+  }
+
+  async getAllMessagesUnreadGroup(): Promise<{ credentialId: number; totalUnreadCount: number }[]> {
+    const totalUnreadCounts = await this.ChatsModule.aggregate([
+      {
+        $match: {
+          credentialId: { $in: [20, 41] },
+          isBlocked: false
+        }
+      },
+      {
+        $group: {
+          _id: '$credentialId',
+          totalUnreadCount: { $sum: '$unreadCount' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          credentialId: '$_id',
+          totalUnreadCount: 1
+        }
+      }
+    ]);
+
+    return totalUnreadCounts;
+  }
+
+  getLeadName(lead: any) {
+    if (lead.first_name && lead.last_name) {
+      return `${lead.first_name} ${lead.last_name}`;
+    }
+
+    if (lead.nickname) {
+      return lead.nickname;
+    }
+
+    return "Unknown";
   }
 }

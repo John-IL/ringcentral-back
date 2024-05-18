@@ -1,10 +1,8 @@
 export class Credential {
-    id: Number;
+    id: number;
     module_id: Number;
     rc_name: string;
     number: string;
     extension: string;
-    default: Number;
     number_format: string;
-    token: string;
 }
